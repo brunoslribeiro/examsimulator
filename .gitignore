@@ -20,6 +20,9 @@ docker-compose.override.yml
 .docker
 *.pid
 
+# Database
+data/
+
 # Build
 dist/
 build/
