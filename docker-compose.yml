@@ -1,0 +1,27 @@
+services:
+  mongo:
+    image: mongo:6
+    container_name: exams-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data:/data/db
+    restart: unless-stopped
+
+  app:
+    image: node:20
+    container_name: exams-app
+    working_dir: /usr/src/app
+    volumes:
+      - ./:/usr/src/app
+      - /usr/src/app/node_modules
+      - ./uploads:/usr/src/app/uploads
+    command: sh -c "npm install && npm run start"
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/examdb
+      - PORT=3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mongo
+    restart: unless-stopped

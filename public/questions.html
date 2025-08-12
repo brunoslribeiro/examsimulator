@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Questões</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header id="app-header"></header>
+  <div class="container">
+    <div class="breadcrumb">Administração &rsaquo; Provas &rsaquo; <span id="crumbExam">...</span> &rsaquo; Questões</div>
+    <h1>Questões</h1>
+    <div class="card">
+      <h2>Nova / Editar questão</h2>
+      <form id="qForm">
+        <input type="hidden" id="qid" />
+        <label>Enunciado <textarea id="qtext" required></textarea></label>
+        <label>Tipo
+          <select id="qtype">
+            <option value="single">Única escolha</option>
+            <option value="multiple">Múltipla escolha</option>
+          </select>
+        </label>
+        <div id="opts"></div>
+        <div class="row">
+          <button type="button" id="addOpt" class="secondary">+ opção</button>
+          <button type="submit">Salvar questão</button>
+          <button type="button" id="cancel" class="secondary">Cancelar edição</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Questões cadastradas</h2>
+      <div id="list"></div>
+    </div>
+  </div>
+  <script src="common.js"></script>
+  <script src="questions.js"></script>
+</body>
+</html>
