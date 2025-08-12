@@ -12,11 +12,15 @@
     <h1>Provas</h1>
 
     <div class="card">
-      <h2>Criar nova prova</h2>
+      <h2>Nova / Editar prova</h2>
       <form id="examForm">
+        <input type="hidden" id="examId" />
         <label>Título <input id="title" required /></label>
         <label>Descrição <textarea id="description"></textarea></label>
-        <button type="submit">Salvar</button>
+        <div class="row">
+          <button type="submit" id="saveExam">Salvar</button>
+          <button type="button" id="cancelEdit" class="secondary">Cancelar edição</button>
+        </div>
       </form>
     </div>
 
