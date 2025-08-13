@@ -1,16 +1,20 @@
 services:
   mongo:
     image: mongo:6
-    container_name: exams-mongo
+    command: ["--bind_ip_all"]
     ports:
-      - "27017:27017"
+      - "27018:27017"        # host:container  ← use mongodb://localhost:27018 no Compass
     volumes:
-      - ./data:/data/db
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'db.runCommand({ ping: 1 }).ok' | mongosh --quiet localhost:27017 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     restart: unless-stopped
 
   app:
     image: node:20
-    container_name: exams-app
     working_dir: /usr/src/app
     volumes:
       - ./:/usr/src/app
@@ -18,10 +22,14 @@ services:
       - ./uploads:/usr/src/app/uploads
     command: sh -c "npm install && npm run start"
     environment:
-      - MONGO_URL=mongodb://mongo:27017/examdb
+      - MONGO_URL=mongodb://mongo:27017/examdb   # dentro da rede do compose continua 27017
       - PORT=3000
     ports:
       - "3000:3000"
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  mongo-data:
