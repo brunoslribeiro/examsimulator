@@ -60,6 +60,25 @@ function renderQuestion() {
   `;
   form.appendChild(div);
 
+  // restore previous selections if available
+  if (answers[current]) {
+    const prev = new Set(answers[current].selectedIndices);
+    div.querySelectorAll('input').forEach(inp => {
+      if (prev.has(parseInt(inp.value, 10))) inp.checked = true;
+    });
+  }
+
+  const nav = document.createElement('div');
+  nav.className = 'row';
+
+  if (current > 0) {
+    const backBtn = document.createElement('button');
+    backBtn.type = 'button';
+    backBtn.textContent = 'Voltar';
+    backBtn.onclick = () => { saveCurrent(); current--; renderQuestion(); };
+    nav.appendChild(backBtn);
+  }
+
   const btn = document.createElement('button');
   if (current < data.questions.length - 1) {
     btn.textContent = 'Next'; btn.type = 'button';
@@ -74,7 +93,8 @@ function renderQuestion() {
       show(res);
     };
   }
-  form.appendChild(btn);
+  nav.appendChild(btn);
+  form.appendChild(nav);
 }
 
 async function load() {
