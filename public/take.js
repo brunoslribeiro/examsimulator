@@ -50,7 +50,7 @@ async function load() {
     `;
     form.appendChild(div);
   });
-  const btn = document.createElement('button'); btn.textContent = 'Enviar respostas'; btn.type = 'submit';
+  const btn = document.createElement('button'); btn.textContent = '📤 Enviar respostas'; btn.type = 'submit';
   form.appendChild(btn);
 
   form.onsubmit = async (ev) => {

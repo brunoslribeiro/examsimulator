@@ -11,7 +11,7 @@ function resetForm(){
   document.getElementById('examId').value = '';
   titleInput.value = '';
   descInput.value = '';
-  saveBtn.textContent = 'Salvar';
+  saveBtn.textContent = '💾 Salvar';
   cancelBtn.style.display = 'none';
 }
 
@@ -20,7 +20,7 @@ function startEdit(exam){
   document.getElementById('examId').value = exam._id;
   titleInput.value = exam.title;
   descInput.value = exam.description || '';
-  saveBtn.textContent = 'Atualizar';
+  saveBtn.textContent = '🔄 Atualizar';
   cancelBtn.style.display = 'inline-block';
   window.scrollTo({top:0, behavior:'smooth'});
 }
@@ -42,10 +42,10 @@ async function load() {
           <span class="muted">${new Date(e.createdAt).toLocaleString()}</span>
         </div>
         <div class="actions">
-          <button onclick="location.href='questions.html?examId=${e._id}'">Gerenciar questões</button>
-          <button onclick="location.href='take.html?examId=${e._id}'">Aplicar prova</button>
-          <button data-edit="${e._id}" class="secondary">Editar</button>
-          <button data-del="${e._id}" class="secondary">Excluir</button>
+          <button onclick="location.href='questions.html?examId=${e._id}'">📝 Gerenciar questões</button>
+          <button onclick="location.href='take.html?examId=${e._id}'">▶️ Aplicar prova</button>
+          <button data-edit="${e._id}" class="secondary">✏️ Editar</button>
+          <button data-del="${e._id}" class="secondary">🗑️ Excluir</button>
         </div>
       </div>
       ${e.description ? `<p style="margin:8px 0 0">${e.description}</p>` : ''}
