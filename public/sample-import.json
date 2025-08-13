@@ -1,0 +1,42 @@
+{
+  "exams": [
+    {
+      "title": "Exame de Exemplo",
+      "description": "Este é um exame de exemplo",
+      "questions": [
+        {
+          "text": "Qual é a capital da França?",
+          "type": "single",
+          "options": [
+            { "text": "Paris", "isCorrect": true },
+            { "text": "Londres", "isCorrect": false },
+            { "text": "Berlim", "isCorrect": false }
+          ]
+        },
+        {
+          "text": "Selecione números pares",
+          "type": "multiple",
+          "options": [
+            { "text": "1", "isCorrect": false },
+            { "text": "2", "isCorrect": true },
+            { "text": "3", "isCorrect": false },
+            { "text": "4", "isCorrect": true }
+          ]
+        },
+        {
+          "text": "Exemplo com imagem",
+          "imageBase64": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAwMB/Ur8/oUAAAAASUVORK5CYII=",
+          "type": "single",
+          "options": [
+            { "text": "Texto puro", "isCorrect": false },
+            {
+              "text": "Com imagem",
+              "isCorrect": true,
+              "imageBase64": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAwMB/Ur8/oUAAAAASUVORK5CYII="
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

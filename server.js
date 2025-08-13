@@ -11,6 +11,17 @@ const PORT = process.env.PORT || 3000;
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
+function saveBase64Image(data) {
+  if (typeof data !== 'string') return '';
+  const match = data.match(/^data:(image\/[^;]+);base64,(.+)$/);
+  if (!match) return '';
+  const ext = match[1].split('/')[1];
+  const filename = Date.now() + '-' + Math.round(Math.random() * 1e9) + '.' + ext;
+  const filepath = path.join(UPLOAD_DIR, filename);
+  fs.writeFileSync(filepath, Buffer.from(match[2], 'base64'));
+  return '/uploads/' + filename;
+}
+
 // --- App ---
 const app = express();
 app.use(cors());
@@ -98,16 +109,19 @@ app.delete('/api/exams/:id', async (req, res) => {
 // Questions
 app.post('/api/questions', async (req, res) => {
   try {
-    const { examId, text, type, options } = req.body;
+    const { examId, text, type, options, imagePath, imageBase64 } = req.body;
     if (!examId) return res.status(400).json({ error: 'examId is required' });
+    let qImagePath = imagePath || '';
+    if (imageBase64) qImagePath = saveBase64Image(imageBase64);
     const parsedOptions = Array.isArray(options) ? options : [];
     const q = await Question.create({
       examId,
       text,
+      imagePath: qImagePath,
       type: ['single','multiple'].includes(type) ? type : 'single',
       options: parsedOptions.map(o => ({
         text: o.text || '',
-        imagePath: o.imagePath || '',
+        imagePath: o.imageBase64 ? saveBase64Image(o.imageBase64) : (o.imagePath || ''),
         isCorrect: !!o.isCorrect
       }))
     });
@@ -126,16 +140,19 @@ app.get('/api/questions', async (req, res) => {
 
 app.put('/api/questions/:id', async (req, res) => {
   try {
-    const { text, type, options } = req.body;
+    const { text, type, options, imagePath, imageBase64 } = req.body;
+    let qImagePath = imagePath || '';
+    if (imageBase64) qImagePath = saveBase64Image(imageBase64);
     const parsedOptions = Array.isArray(options) ? options : [];
     const q = await Question.findByIdAndUpdate(
       req.params.id,
       {
         text,
+        imagePath: qImagePath,
         type: ['single','multiple'].includes(type) ? type : 'single',
         options: parsedOptions.map(o => ({
           text: o.text || '',
-          imagePath: o.imagePath || '',
+          imagePath: o.imageBase64 ? saveBase64Image(o.imageBase64) : (o.imagePath || ''),
           isCorrect: !!o.isCorrect
         }))
       },
@@ -153,6 +170,45 @@ app.delete('/api/questions/:id', async (req, res) => {
     const q = await Question.findByIdAndDelete(req.params.id);
     if (!q) return res.status(404).json({ error: 'Question not found' });
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Import exams/questions from JSON
+app.post('/api/import', async (req, res) => {
+  try {
+    const payload = Array.isArray(req.body?.exams)
+      ? req.body.exams
+      : Array.isArray(req.body)
+      ? req.body
+      : [req.body];
+    const imported = [];
+    for (const ex of payload) {
+      if (!ex || !ex.title) continue;
+      const exam = await Exam.create({
+        title: ex.title,
+        description: ex.description || ''
+      });
+      if (Array.isArray(ex.questions) && ex.questions.length) {
+        const qs = ex.questions.map(q => ({
+          examId: exam._id,
+          text: q.text || '',
+          imagePath: q.imageBase64 ? saveBase64Image(q.imageBase64) : (q.imagePath || ''),
+          type: ['single', 'multiple'].includes(q.type) ? q.type : 'single',
+          options: Array.isArray(q.options)
+            ? q.options.map(o => ({
+                text: o.text || '',
+                imagePath: o.imageBase64 ? saveBase64Image(o.imageBase64) : (o.imagePath || ''),
+                isCorrect: !!o.isCorrect
+              }))
+            : []
+        }));
+        await Question.insertMany(qs);
+      }
+      imported.push(exam._id);
+    }
+    res.json({ imported: imported.length });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
