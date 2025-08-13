@@ -2,6 +2,36 @@ const api = (u, o={}) => fetch(u, o).then(r => r.json());
 const examId = new URLSearchParams(location.search).get('examId');
 if (!examId) { document.body.querySelector('.container').insertAdjacentHTML('beforeend','<p class="card">examId obrigatório.</p>'); throw new Error('no examId'); }
 
+const clock = document.getElementById('clock');
+const startBtn = document.getElementById('start');
+const pauseBtn = document.getElementById('pause');
+const stopBtn = document.getElementById('stop');
+let timer = null;
+let seconds = 0;
+
+function renderClock() {
+  const m = String(Math.floor(seconds/60)).padStart(2,'0');
+  const s = String(seconds%60).padStart(2,'0');
+  clock.textContent = m + ':' + s;
+}
+
+startBtn.onclick = () => {
+  if (timer) return;
+  timer = setInterval(() => { seconds++; renderClock(); }, 1000);
+};
+
+pauseBtn.onclick = () => {
+  if (!timer) return;
+  clearInterval(timer); timer = null;
+};
+
+stopBtn.onclick = () => {
+  if (timer) { clearInterval(timer); timer = null; }
+  seconds = 0; renderClock();
+};
+
+renderClock();
+
 async function load() {
   const data = await api('/api/exams/' + examId);
   document.getElementById('info').textContent = data.exam.title + (data.exam.description ? ' — ' + data.exam.description : '');
@@ -9,16 +39,14 @@ async function load() {
   (data.questions || []).forEach((q, i) => {
     const div = document.createElement('div'); div.className = 'card'; div.id = 'q'+i;
     const opts = q.options.map((o, idx) => `
-      <li>
-        <label>
-          <input type="${q.type === 'multiple' ? 'checkbox':'radio'}" name="q-${q._id}" value="${idx}">
-          ${o.text ? '<span>' + o.text + '</span>' : ''}
-          ${o.imagePath ? '<img class="preview" src="${o.imagePath}"/>' : ''}
-        </label>
-      </li>`).join('');
+      <label class="choice">
+        <input type="${q.type === 'multiple' ? 'checkbox':'radio'}" name="q-${q._id}" value="${idx}">
+        ${o.text ? '<span>' + o.text + '</span>' : ''}
+        ${o.imagePath ? '<img class="preview" src="${o.imagePath}"/>' : ''}
+      </label>`).join('');
     div.innerHTML = `
       <div><strong>Q${i+1}.</strong> ${q.text || ''} <span class="muted">[${q.type}]</span></div>
-      <ul>${opts}</ul>
+      <div class="options">${opts}</div>
     `;
     form.appendChild(div);
   });

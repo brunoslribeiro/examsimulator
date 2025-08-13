@@ -54,7 +54,7 @@ h3{font-size:16px; margin:0 0 10px;}
 
 form{display:grid; gap:14px;}
 label{display:block; color:var(--muted); font-size:14px;}
-label > input,
+label > input:not([type=checkbox]):not([type=radio]),
 label > textarea,
 label > select{
   display:block;
@@ -97,6 +97,12 @@ button.danger{background:var(--danger)}
 .row.between{justify-content:space-between;}
 .actions{display:flex; gap:12px; align-items:center;}
 ul{padding-left:18px; margin:8px 0 0;}
+
+.options{display:flex; flex-direction:column; gap:6px; margin:8px 0 0; padding:0;}
+.options .choice{display:flex; align-items:center; gap:8px; color:var(--text);}
+.options .choice > input{margin:0;}
+
+#clock{font-weight:600;}
 
 .muted{color:var(--muted); font-size:13px;}
 img.preview{max-height:72px; display:block; margin-top:8px; border-radius:10px; border:1px solid var(--border)}
