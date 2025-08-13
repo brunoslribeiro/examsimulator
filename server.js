@@ -4,6 +4,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const cors = require('cors');
+const pdfParse = require('pdf-parse');
 
 // --- Config ---
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017/examdb';
@@ -20,6 +21,33 @@ function saveBase64Image(data) {
   const filepath = path.join(UPLOAD_DIR, filename);
   fs.writeFileSync(filepath, Buffer.from(match[2], 'base64'));
   return '/uploads/' + filename;
+}
+
+// Parse questions from plain text extracted from PDF
+function parsePdfQuestions(text) {
+  const blocks = text.split(/NEW QUESTION \d+/i).slice(1);
+  const questions = [];
+  for (const block of blocks) {
+    const lines = block.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    // remove metadata lines starting with '-'
+    while (lines[0] && lines[0].startsWith('-')) lines.shift();
+    const answerIdx = lines.findIndex(l => /^Answer:/i.test(l));
+    if (answerIdx === -1) continue;
+    const answerLetter = lines[answerIdx].split(':').pop().trim()[0];
+    lines.splice(answerIdx, 1);
+    const optionStart = lines.findIndex(l => /^[A-Z]\./.test(l));
+    if (optionStart === -1) continue;
+    const questionText = lines.slice(0, optionStart).join(' ');
+    const options = [];
+    for (let i = optionStart; i < lines.length; i++) {
+      const m = lines[i].match(/^([A-Z])\.\s*(.*)/);
+      if (!m) break;
+      options.push({ letter: m[1], text: m[2] });
+    }
+    if (!options.length) continue;
+    questions.push({ text: questionText, options, answer: answerLetter });
+  }
+  return questions;
 }
 
 // --- App ---
@@ -209,6 +237,31 @@ app.post('/api/import', async (req, res) => {
       imported.push(exam._id);
     }
     res.json({ imported: imported.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Import questions from uploaded PDF
+app.post('/api/import-pdf', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const title = req.body.title || 'Imported PDF';
+    const buffer = fs.readFileSync(req.file.path);
+    fs.unlink(req.file.path, () => {});
+    const data = await pdfParse(buffer);
+    const parsed = parsePdfQuestions(data.text);
+    const exam = await Exam.create({ title, description: '' });
+    if (parsed.length) {
+      const qs = parsed.map(p => ({
+        examId: exam._id,
+        text: p.text,
+        type: 'single',
+        options: p.options.map(o => ({ text: o.text, isCorrect: o.letter === p.answer }))
+      }));
+      await Question.insertMany(qs);
+    }
+    res.json({ imported: parsed.length });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
