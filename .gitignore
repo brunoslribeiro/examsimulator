@@ -21,7 +21,7 @@ docker-compose.override.yml
 *.pid
 
 # Database
-data/
+data/*
 
 # Build
 dist/
@@ -46,4 +46,3 @@ public/uploads/
 *.swp
 *.swo
 *.swn
-data/diagnostic.data/metrics.interim
