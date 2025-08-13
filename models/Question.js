@@ -8,6 +8,7 @@ const OptionSchema = new mongoose.Schema({
 const QuestionSchema = new mongoose.Schema({
   examId: { type: mongoose.Schema.Types.ObjectId, ref: 'Exam', required: true },
   text: { type: String, default: '' },
+  imagePath: { type: String, default: '' },
   type: { type: String, enum: ['single','multiple'], default: 'single' },
   options: { type: [OptionSchema], default: [] }
 }, { timestamps: true });

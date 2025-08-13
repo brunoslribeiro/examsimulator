@@ -18,6 +18,7 @@ async function load() {
       </li>`).join('');
     div.innerHTML = `
       <div><strong>Q${i+1}.</strong> ${q.text || ''} <span class="muted">[${q.type}]</span></div>
+      ${q.imagePath ? '<img class="preview" src="' + q.imagePath + '"/>' : ''}
       <ul>${opts}</ul>
     `;
     form.appendChild(div);

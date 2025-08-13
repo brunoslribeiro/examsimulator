@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Importar Provas</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header id="app-header"></header>
+  <div class="container">
+    <div class="breadcrumb">Administração &rsaquo; Importar JSON</div>
+    <h1>Importar Provas</h1>
+    <div class="card">
+      <h2>Arquivo JSON</h2>
+      <form id="importForm">
+        <label>Selecione o arquivo
+          <input type="file" id="jsonFile" accept="application/json" required />
+        </label>
+        <button type="submit">Importar</button>
+      </form>
+      <div id="result" class="muted" style="margin-top:8px"></div>
+      <details style="margin-top:16px">
+        <summary>Ver exemplo de JSON</summary>
+        <pre id="sampleJson" style="overflow:auto; max-height:200px"></pre>
+        <a href="sample-import.json" download class="muted">Baixar exemplo</a>
+      </details>
+    </div>
+  </div>
+  <script src="common.js"></script>
+  <script src="import.js"></script>
+</body>
+</html>
