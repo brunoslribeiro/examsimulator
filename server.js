@@ -4,6 +4,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const cors = require('cors');
+const { parsePdfQuestions } = require('./pdfLayoutParser');
 
 // --- Config ---
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017/examdb';
@@ -209,6 +210,30 @@ app.post('/api/import', async (req, res) => {
       imported.push(exam._id);
     }
     res.json({ imported: imported.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Import questions from uploaded PDF
+app.post('/api/import-pdf', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const title = req.body.title || 'Imported PDF';
+    const buffer = fs.readFileSync(req.file.path);
+    fs.unlink(req.file.path, () => {});
+    const parsed = await parsePdfQuestions(buffer);
+    const exam = await Exam.create({ title, description: '' });
+    if (parsed.length) {
+      const qs = parsed.map(p => ({
+        examId: exam._id,
+        text: p.prompt,
+        type: 'single',
+        options: p.choices.map(o => ({ text: o.text, isCorrect: p.answer.includes(o.label) }))
+      }));
+      await Question.insertMany(qs);
+    }
+    res.json({ imported: parsed.length });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

@@ -1,7 +1,12 @@
-const form = document.getElementById('importForm');
+const jsonForm = document.getElementById('importJsonForm');
 const fileInput = document.getElementById('jsonFile');
 const resultBox = document.getElementById('result');
 const sampleBox = document.getElementById('sampleJson');
+
+const pdfForm = document.getElementById('importPdfForm');
+const pdfFile = document.getElementById('pdfFile');
+const pdfTitle = document.getElementById('pdfTitle');
+const pdfResult = document.getElementById('pdfResult');
 
 if (sampleBox) {
   fetch('sample-import.json')
@@ -12,7 +17,7 @@ if (sampleBox) {
     });
 }
 
-form.onsubmit = async (ev) => {
+jsonForm.onsubmit = async (ev) => {
   ev.preventDefault();
   const file = fileInput.files[0];
   if (!file) { alert('Selecione um arquivo'); return; }
@@ -35,5 +40,30 @@ form.onsubmit = async (ev) => {
   } catch (e) {
     resultBox.textContent = e.message;
     toast('Erro na importação');
+  }
+};
+
+pdfForm.onsubmit = async ev => {
+  ev.preventDefault();
+  const file = pdfFile.files[0];
+  const title = pdfTitle.value.trim();
+  if (!file || !title) { alert('Informe título e arquivo'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('title', title);
+  try {
+    const res = await fetch('/api/import-pdf', { method: 'POST', body: fd });
+    const json = await res.json();
+    if (res.ok) {
+      pdfResult.textContent = `Importados: ${json.imported}`;
+      toast('Importação PDF concluída');
+    } else {
+      pdfResult.textContent = json.error || 'Erro desconhecido';
+      toast('Erro na importação PDF');
+    }
+  } catch (e) {
+    console.error('PDF upload failed', e);
+    pdfResult.textContent = 'Falha ao conectar ao servidor';
+    toast('Erro na importação PDF');
   }
 };
