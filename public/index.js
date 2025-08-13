@@ -42,8 +42,8 @@ async function load() {
           <span class="muted">${new Date(e.createdAt).toLocaleString()}</span>
         </div>
         <div class="actions">
-          <a href="questions.html?examId=${e._id}">Gerenciar questões</a>
-          <a href="take.html?examId=${e._id}">Aplicar prova</a>
+          <button onclick="location.href='questions.html?examId=${e._id}'">Gerenciar questões</button>
+          <button onclick="location.href='take.html?examId=${e._id}'">Aplicar prova</button>
           <button data-edit="${e._id}" class="secondary">Editar</button>
           <button data-del="${e._id}" class="secondary">Excluir</button>
         </div>
