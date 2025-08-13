@@ -74,18 +74,18 @@ function renderQuestion() {
   if (current > 0) {
     const backBtn = document.createElement('button');
     backBtn.type = 'button';
-    backBtn.textContent = 'Voltar';
+    backBtn.textContent = '⬅️ Voltar';
     backBtn.onclick = () => { saveCurrent(); current--; renderQuestion(); };
     nav.appendChild(backBtn);
   }
 
   const btn = document.createElement('button');
   if (current < data.questions.length - 1) {
-    btn.textContent = 'Next'; btn.type = 'button';
+    btn.textContent = '➡️ Next'; btn.type = 'button';
     btn.onclick = () => { saveCurrent(); current++; renderQuestion(); };
     form.onsubmit = null;
   } else {
-    btn.textContent = 'Enviar respostas'; btn.type = 'submit';
+    btn.textContent = '📤 Enviar respostas'; btn.type = 'submit';
     form.onsubmit = async (ev) => {
       ev.preventDefault();
       saveCurrent();

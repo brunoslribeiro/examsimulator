@@ -58,8 +58,8 @@ async function loadList() {
           <strong>${q.text}</strong> <span class="muted">[${q.type}]</span>
         </div>
         <div class="actions">
-          <button data-edit="${q._id}" class="secondary">Editar</button>
-          <button data-del="${q._id}" class="danger">Excluir</button>
+          <button data-edit="${q._id}" class="secondary">✏️ Editar</button>
+          <button data-del="${q._id}" class="danger">🗑️ Excluir</button>
         </div>
       </div>
       <div class="muted" style="margin:6px 0">${opts}</div>
