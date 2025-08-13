@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Aplicar Prova</title>
+  <script src="theme-init.js"></script>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -12,6 +13,12 @@
     <div class="breadcrumb">Administração &rsaquo; Aplicar Prova</div>
     <h1>Aplicar Prova</h1>
     <div id="info" class="muted"></div>
+    <div class="row actions">
+      <button type="button" id="start">Start</button>
+      <button type="button" id="pause">Pause</button>
+      <button type="button" id="stop">Stop</button>
+      <span id="clock">00:00</span>
+    </div>
     <form id="form"></form>
     <div id="result"></div>
   </div>
