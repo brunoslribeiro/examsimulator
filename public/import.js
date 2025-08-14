@@ -58,7 +58,10 @@ pdfForm.onsubmit = async ev => {
       pdfResult.textContent = `Importados: ${json.imported}`;
       toast('Importação PDF concluída');
     } else {
-      pdfResult.textContent = json.error || 'Erro desconhecido';
+      const msg = json.error ?
+        (json.details ? `${json.error}: ${json.details}` : json.error) :
+        'Erro desconhecido';
+      pdfResult.textContent = msg;
       toast('Erro na importação PDF');
     }
   } catch (e) {

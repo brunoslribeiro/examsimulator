@@ -221,7 +221,10 @@ app.post('/api/import', async (req, res) => {
 // Import questions from uploaded PDF
 app.post('/api/import-pdf', upload.single('file'), async (req, res) => {
   if (!pdfParser.isAvailable) {
-    return res.status(503).json({ error: 'PDF import not available' });
+    return res.status(501).json({
+      error: 'PDF import not available',
+      details: 'Install optional dependency pdfjs-dist to enable PDF parsing'
+    });
   }
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });

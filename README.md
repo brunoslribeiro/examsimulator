@@ -79,6 +79,18 @@ http://localhost:3000
 3. Adicione questões e alternativas (texto ou imagem).
 4. Aplique a prova para visualizar no modo de execução.
 
+### Importar questões de PDF (opcional)
+
+Para habilitar a importação automática de questões a partir de arquivos PDF,
+instale a dependência opcional `pdfjs-dist`:
+
+```bash
+npm install pdfjs-dist
+```
+
+Se essa biblioteca não estiver instalada, o endpoint `/api/import-pdf`
+retornará **"PDF import not available"**.
+
 ---
 
 ## 📝 Variáveis de ambiente

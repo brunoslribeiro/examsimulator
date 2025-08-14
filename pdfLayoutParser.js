@@ -1,8 +1,12 @@
 let pdfjsLib;
 try {
   pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
-} catch (e) {
-  console.warn('pdfjs-dist not installed; PDF layout parsing disabled');
+} catch (e1) {
+  try {
+    pdfjsLib = require('pdfjs-dist/build/pdf.js');
+  } catch (e2) {
+    console.warn('pdfjs-dist not installed; PDF layout parsing disabled');
+  }
 }
 
 async function extractParagraphs(buffer, opts = {}) {
