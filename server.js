@@ -4,7 +4,10 @@ const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const cors = require('cors');
-const { parsePdfQuestions } = require('./pdfLayoutParser');
+const pdfParser = require('./pdfLayoutParser');
+if (!pdfParser.isAvailable) {
+  console.warn('pdfjs-dist not installed; PDF import disabled');
+}
 
 // --- Config ---
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017/examdb';
@@ -217,12 +220,15 @@ app.post('/api/import', async (req, res) => {
 
 // Import questions from uploaded PDF
 app.post('/api/import-pdf', upload.single('file'), async (req, res) => {
+  if (!pdfParser.isAvailable) {
+    return res.status(503).json({ error: 'PDF import not available' });
+  }
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     const title = req.body.title || 'Imported PDF';
     const buffer = fs.readFileSync(req.file.path);
     fs.unlink(req.file.path, () => {});
-    const parsed = await parsePdfQuestions(buffer);
+    const parsed = await pdfParser.parsePdfQuestions(buffer);
     const exam = await Exam.create({ title, description: '' });
     if (parsed.length) {
       const qs = parsed.map(p => ({

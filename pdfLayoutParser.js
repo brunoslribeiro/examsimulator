@@ -1,6 +1,12 @@
-const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
+let pdfjsLib;
+try {
+  pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
+} catch (e) {
+  console.warn('pdfjs-dist not installed; PDF layout parsing disabled');
+}
 
 async function extractParagraphs(buffer, opts = {}) {
+  if (!pdfjsLib) throw new Error('pdfjs-dist not installed');
   const {
     yTolerance = 2,
     paragraphGap = 8,
@@ -132,6 +138,7 @@ function detectQuestions(paragraphs, opts = {}) {
 }
 
 async function parsePdfQuestions(buffer, opts = {}) {
+  if (!pdfjsLib) throw new Error('pdfjs-dist not installed');
   const paragraphs = await extractParagraphs(buffer, opts);
   return detectQuestions(paragraphs, opts);
 }
@@ -140,4 +147,5 @@ module.exports = {
   extractParagraphs,
   detectQuestions,
   parsePdfQuestions,
+  isAvailable: !!pdfjsLib,
 };
