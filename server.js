@@ -22,7 +22,8 @@ function saveBase64Image(data) {
   const ext = match[1].split('/')[1];
   const filename = Date.now() + '-' + Math.round(Math.random() * 1e9) + '.' + ext;
   const filepath = path.join(UPLOAD_DIR, filename);
-  fs.writeFileSync(filepath, Buffer.from(match[2], 'base64'));
+  const bytes = Uint8Array.from(atob(match[2]), c => c.charCodeAt(0));
+  fs.writeFileSync(filepath, bytes);
   return '/uploads/' + filename;
 }
 
@@ -228,9 +229,10 @@ app.post('/api/import-pdf', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     const title = req.body.title || 'Imported PDF';
-    const buffer = fs.readFileSync(req.file.path);
+    const fileData = fs.readFileSync(req.file.path);
+    const bytes = new Uint8Array(fileData);
     fs.unlink(req.file.path, () => {});
-    const parsed = await pdfParser.parsePdfQuestions(buffer);
+    const parsed = await pdfParser.parsePdfQuestions(bytes);
     const exam = await Exam.create({ title, description: '' });
     if (parsed.length) {
       const qs = parsed.map(p => ({
