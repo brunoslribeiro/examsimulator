@@ -89,7 +89,7 @@ npm install pdfjs-dist
 ```
 
 Se essa biblioteca não estiver instalada, o endpoint `/api/import-pdf`
-retornará **"PDF import not available"**.
+retornará **"PDF import not available: Install optional dependency pdfjs-dist to enable PDF parsing"**.
 
 ---
 

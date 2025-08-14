@@ -5,7 +5,7 @@ try {
   try {
     pdfjsLib = require('pdfjs-dist/build/pdf.js');
   } catch (e2) {
-    console.warn('pdfjs-dist not installed; PDF layout parsing disabled');
+    console.warn('pdfjs-dist not installed; PDF layout parsing disabled. Run "npm install pdfjs-dist" to enable.');
   }
 }
 

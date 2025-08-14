@@ -6,7 +6,7 @@ const multer = require('multer');
 const cors = require('cors');
 const pdfParser = require('./pdfLayoutParser');
 if (!pdfParser.isAvailable) {
-  console.warn('pdfjs-dist not installed; PDF import disabled');
+  console.warn('pdfjs-dist not installed; PDF import disabled. Run "npm install pdfjs-dist" to enable PDF parsing.');
 }
 
 // --- Config ---
@@ -222,8 +222,7 @@ app.post('/api/import', async (req, res) => {
 app.post('/api/import-pdf', upload.single('file'), async (req, res) => {
   if (!pdfParser.isAvailable) {
     return res.status(501).json({
-      error: 'PDF import not available',
-      details: 'Install optional dependency pdfjs-dist to enable PDF parsing'
+      error: 'PDF import not available: Install optional dependency pdfjs-dist to enable PDF parsing'
     });
   }
   try {
