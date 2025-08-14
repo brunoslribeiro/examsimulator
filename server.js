@@ -275,11 +275,16 @@ app.post('/api/attempts', async (req, res) => {
 
 // --- DB & start ---
 async function start() {
-  await mongoose.connect(MONGO_URL, { dbName: undefined });
-  console.log('Connected to MongoDB:', MONGO_URL);
+  try {
+    await mongoose.connect(MONGO_URL, { serverSelectionTimeoutMS: 5000 });
+    console.log('Connected to MongoDB:', MONGO_URL);
+  } catch (err) {
+    console.error('MongoDB connection failed:', err.message);
+    console.error('Ensure MongoDB is running at', MONGO_URL);
+    process.exit(1);
+  }
+
   app.listen(PORT, () => console.log('Server running on http://localhost:' + PORT));
 }
-start().catch(err => {
-  console.error('Failed to start:', err);
-  process.exit(1);
-});
+
+start();
