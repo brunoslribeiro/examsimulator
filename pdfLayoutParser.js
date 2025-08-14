@@ -1,16 +1,38 @@
 let pdfjsLib;
+let pdfjsPath = '';
 try {
   pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
+  pdfjsPath = 'pdfjs-dist/legacy/build/pdf.js';
 } catch (e1) {
   try {
     pdfjsLib = require('pdfjs-dist/build/pdf.js');
+    pdfjsPath = 'pdfjs-dist/build/pdf.js';
   } catch (e2) {
-    console.warn('pdfjs-dist not installed; PDF layout parsing disabled. Run "npm install pdfjs-dist" to enable.');
+    try {
+      require.resolve('pdfjs-dist/legacy/build/pdf.mjs');
+      pdfjsPath = 'pdfjs-dist/legacy/build/pdf.mjs';
+    } catch (e3) {
+      try {
+        require.resolve('pdfjs-dist/build/pdf.mjs');
+        pdfjsPath = 'pdfjs-dist/build/pdf.mjs';
+      } catch (e4) {
+        console.warn('pdfjs-dist not installed; PDF layout parsing disabled. Run "npm install pdfjs-dist" to enable.');
+      }
+    }
   }
 }
 
+const isAvailable = !!pdfjsPath;
+
+async function ensurePdfjs() {
+  if (pdfjsLib) return pdfjsLib;
+  if (!pdfjsPath) throw new Error('pdfjs-dist not installed');
+  pdfjsLib = await import(pdfjsPath);
+  return pdfjsLib;
+}
+
 async function extractParagraphs(buffer, opts = {}) {
-  if (!pdfjsLib) throw new Error('pdfjs-dist not installed');
+  const pdfjsLib = await ensurePdfjs();
   const {
     yTolerance = 2,
     paragraphGap = 8,
@@ -142,7 +164,7 @@ function detectQuestions(paragraphs, opts = {}) {
 }
 
 async function parsePdfQuestions(buffer, opts = {}) {
-  if (!pdfjsLib) throw new Error('pdfjs-dist not installed');
+  await ensurePdfjs();
   const paragraphs = await extractParagraphs(buffer, opts);
   return detectQuestions(paragraphs, opts);
 }
@@ -151,5 +173,5 @@ module.exports = {
   extractParagraphs,
   detectQuestions,
   parsePdfQuestions,
-  isAvailable: !!pdfjsLib,
+  isAvailable,
 };

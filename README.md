@@ -88,6 +88,11 @@ instale a dependência opcional `pdfjs-dist`:
 npm install pdfjs-dist
 ```
 
+O parser tenta automaticamente os caminhos `pdfjs-dist/legacy/build/pdf.js`,
+`pdfjs-dist/build/pdf.js`, `pdfjs-dist/legacy/build/pdf.mjs` e
+`pdfjs-dist/build/pdf.mjs`, suportando tanto os builds em CommonJS quanto os
+mais novos em ES Modules.
+
 Se essa biblioteca não estiver instalada, o endpoint `/api/import-pdf`
 retornará **"PDF import not available: Install optional dependency pdfjs-dist to enable PDF parsing"**.
 
