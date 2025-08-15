@@ -105,6 +105,7 @@ Form-data:
 - `file`: arquivo PDF com as perguntas.
 - `examId` (opcional): ID de uma prova existente para anexar as questões.
 - `title` e `description` (opcionais): usados ao criar uma nova prova se `examId` não for informado.
+- `template` (opcional): modelo de parser a ser utilizado (`default` ou `flex`).
 
 O retorno contém a quantidade de questões importadas e o `examId` utilizado.
 

@@ -5,6 +5,7 @@ const newExamDiv = document.getElementById('newExam');
 const titleInput = document.getElementById('title');
 const descInput = document.getElementById('description');
 const resultBox = document.getElementById('result');
+const templateSelect = document.getElementById('template');
 
 async function loadExams() {
   try {
@@ -46,6 +47,7 @@ form.onsubmit = async (ev) => {
       fd.append('title', titleInput.value);
       fd.append('description', descInput.value);
     }
+    fd.append('template', templateSelect.value);
     const res = await fetch('/api/import/pdf', {
       method: 'POST',
       body: fd

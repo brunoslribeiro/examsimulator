@@ -23,36 +23,76 @@ function saveBase64Image(data) {
   return '/uploads/' + filename;
 }
 
-// Parse text extracted from PDF into question objects
-function parsePdfQuestions(text) {
-  const lines = text.split(/\r?\n/).map(l => l.trim());
-  const questions = [];
-  let current = null;
-  const optionRegex = /^([A-Z])[\).]\s*(.+)$/;
-  const answerRegex = /^Answer:\s*([A-Z]+)$/i;
-  for (const line of lines) {
-    if (!line) continue;
-    if (/^NEW QUESTION/i.test(line)) {
+// Parse text extracted from PDF into question objects using a template
+function parsePdfQuestions(text, template = 'default') {
+  const parsers = {
+    // Original parser used for questions starting with "NEW QUESTION" blocks
+    default: (t) => {
+      const lines = t.split(/\r?\n/).map(l => l.trim());
+      const questions = [];
+      let current = null;
+      const optionRegex = /^([A-Z])[\).]\s*(.+)$/;
+      const answerRegex = /^Answer:\s*([A-Z]+)$/i;
+      for (const line of lines) {
+        if (!line) continue;
+        if (/^NEW QUESTION/i.test(line)) {
+          if (current) questions.push(current);
+          current = { text: '', options: [], answers: [] };
+          continue;
+        }
+        if (!current) continue;
+        if (/^\(Exam Topic/i.test(line)) continue;
+        const ansMatch = line.match(answerRegex);
+        if (ansMatch) {
+          current.answers = ansMatch[1].toUpperCase().split('').map(c => c.charCodeAt(0) - 65);
+          continue;
+        }
+        const optMatch = line.match(optionRegex);
+        if (optMatch) {
+          current.options.push(optMatch[2].trim());
+          continue;
+        }
+        current.text = current.text ? current.text + ' ' + line : line;
+      }
       if (current) questions.push(current);
-      current = { text: '', options: [], answers: [] };
-      continue;
+      return questions;
+    },
+    // More flexible parser that supports various headings and answer formats
+    flex: (t) => {
+      const lines = t.split(/\r?\n/).map(l => l.trim());
+      const questions = [];
+      let current = null;
+      const startRegex = /^(NEW QUESTION|QUESTION|Q\.?\d+|QUESTION #)/i;
+      const optionRegex = /^([A-Z])[\).]\s*(.+)$/;
+      const answerRegex = /^Answers?:\s*([A-Z ,]+)$/i;
+      for (const line of lines) {
+        if (!line) continue;
+        if (startRegex.test(line)) {
+          if (current) questions.push(current);
+          current = { text: '', options: [], answers: [] };
+          continue;
+        }
+        if (!current) continue;
+        if (/^(\(Exam Topic|Section:)/i.test(line)) continue;
+        const ansMatch = line.match(answerRegex);
+        if (ansMatch) {
+          const letters = ansMatch[1].toUpperCase().replace(/[^A-Z]/g, '');
+          current.answers = letters.split('').map(c => c.charCodeAt(0) - 65);
+          continue;
+        }
+        const optMatch = line.match(optionRegex);
+        if (optMatch) {
+          current.options.push(optMatch[2].trim());
+          continue;
+        }
+        current.text = current.text ? current.text + ' ' + line : line;
+      }
+      if (current) questions.push(current);
+      return questions;
     }
-    if (!current) continue;
-    if (/^\(Exam Topic/i.test(line)) continue;
-    const ansMatch = line.match(answerRegex);
-    if (ansMatch) {
-      current.answers = ansMatch[1].toUpperCase().split('').map(c => c.charCodeAt(0) - 65);
-      continue;
-    }
-    const optMatch = line.match(optionRegex);
-    if (optMatch) {
-      current.options.push(optMatch[2].trim());
-      continue;
-    }
-    current.text = current.text ? current.text + ' ' + line : line;
-  }
-  if (current) questions.push(current);
-  return questions;
+  };
+  const parser = parsers[template] || parsers.default;
+  return parser(text);
 }
 
 // --- App ---
@@ -216,7 +256,8 @@ app.post('/api/import/pdf', upload.single('file'), async (req, res) => {
     const dataBuffer = fs.readFileSync(req.file.path);
     const pdf = await pdfParse(dataBuffer);
     fs.unlinkSync(req.file.path);
-    const parsed = parsePdfQuestions(pdf.text);
+    const template = req.body.template || 'default';
+    const parsed = parsePdfQuestions(pdf.text, template);
     if (!parsed.length) return res.status(400).json({ error: 'No questions found in PDF' });
 
     let exam = null;
