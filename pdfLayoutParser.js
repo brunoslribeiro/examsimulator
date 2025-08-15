@@ -180,10 +180,14 @@ function parseTextByPatterns(text, patterns = {}) {
   for (let line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    if (qRe && qRe.test(trimmed)) {
-      if (current) questions.push(current);
-      current = { prompt: trimmed, choices: [], answer: [] };
-      continue;
+    if (qRe) {
+      const qMatch = trimmed.match(qRe);
+      if (qMatch) {
+        if (current) questions.push(current);
+        const rest = trimmed.replace(qRe, '').trim();
+        current = { prompt: rest, choices: [], answer: [] };
+        continue;
+      }
     }
     if (current && oRe) {
       const m = trimmed.match(oRe);
@@ -219,6 +223,24 @@ async function parsePdfWithPatterns(buffer, patterns, opts = {}) {
     try {
       const qDetectRe = new RegExp(detect, 'g');
       text = text.replace(qDetectRe, '\n$&');
+    } catch (e) {
+      // ignore invalid regex for detection
+    }
+  }
+  if (patterns.option) {
+    const detect = patterns.option.replace(/^\^/, '');
+    try {
+      const oDetectRe = new RegExp(detect, 'g');
+      text = text.replace(oDetectRe, '\n$&');
+    } catch (e) {
+      // ignore invalid regex for detection
+    }
+  }
+  if (patterns.answer) {
+    const detect = patterns.answer.replace(/^\^/, '');
+    try {
+      const aDetectRe = new RegExp(detect, 'g');
+      text = text.replace(aDetectRe, '\n$&');
     } catch (e) {
       // ignore invalid regex for detection
     }

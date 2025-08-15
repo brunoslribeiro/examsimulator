@@ -109,6 +109,11 @@ Padrão da resposta:  ^Answer:\s*([A-D])
 Se os padrões forem omitidos, o parser tenta detectar a estrutura pelas
 posições e espaçamentos do PDF.
 
+O texto do PDF é pré-processado inserindo quebras de linha antes de cada
+correspondência dos padrões de enunciado, opção e resposta. Dessa forma,
+caso múltiplas opções ou o gabarito estejam na mesma linha, eles são
+separados adequadamente antes da análise.
+
 ### Gerar expressões automaticamente
 
 Para auxiliar na criação dessas expressões, o script `regexPatternGenerator.js`
