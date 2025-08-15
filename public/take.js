@@ -5,18 +5,37 @@ const clock = document.getElementById('clock');
 const startBtn = document.getElementById('start');
 const pauseBtn = document.getElementById('pause');
 const stopBtn = document.getElementById('stop');
+const randChk = document.getElementById('random');
+const countInput = document.getElementById('count');
+const maxTimeInput = document.getElementById('maxTime');
+const configBox = document.querySelector('.config');
 let timer = null;
 let seconds = 0;
+let remaining = null;
 
 function renderClock() {
-  const m = String(Math.floor(seconds/60)).padStart(2,'0');
-  const s = String(seconds%60).padStart(2,'0');
+  const sec = remaining !== null ? remaining : seconds;
+  const m = String(Math.floor(sec/60)).padStart(2,'0');
+  const s = String(sec%60).padStart(2,'0');
   clock.textContent = m + ':' + s;
+}
+
+function startTimer() {
+  if (timer) return;
+  timer = setInterval(() => {
+    if (remaining !== null) {
+      remaining--; renderClock();
+      if (remaining <= 0) { clearInterval(timer); timer = null; autoSubmit(); }
+    } else {
+      seconds++; renderClock();
+    }
+  }, 1000);
 }
 
 startBtn.onclick = () => {
   if (timer) return;
-  timer = setInterval(() => { seconds++; renderClock(); }, 1000);
+  if (configBox.style.display !== 'none') applyConfig();
+  startTimer();
 };
 
 pauseBtn.onclick = () => {
@@ -26,7 +45,10 @@ pauseBtn.onclick = () => {
 
 stopBtn.onclick = () => {
   if (timer) { clearInterval(timer); timer = null; }
-  seconds = 0; renderClock();
+  seconds = 0;
+  remaining = maxTimeInput.value ? parseInt(maxTimeInput.value,10) * 60 : null;
+  renderClock();
+  configBox.style.display = '';
 };
 
 renderClock();
@@ -98,17 +120,44 @@ function renderQuestion() {
 
 async function load() {
   data = await api('/api/exams/' + examId);
-  document.getElementById('info').textContent = data.exam.title + (data.exam.description ? ' — ' + data.exam.description : '');
+  document.getElementById('exam-title').textContent = data.exam.title;
+  document.getElementById('info').textContent = data.exam.description || '';
   current = 0;
   answers.length = 0;
-  renderQuestion();
 }
 
 function show(res) {
   const out = document.getElementById('result');
   if (res.error) { out.innerHTML = '<div class="card">'+res.error+'</div>'; return; }
-  const { score } = res;
-  out.innerHTML = '<div class="card"><strong>Resultado:</strong> ' + score.correct + '/' + score.total + ' ('+score.percent+'%)</div>';
+  const { score, details } = res;
+  const wrong = score.total - score.correct;
+  const list = details
+    .map((d, idx) => `<li>Q${idx+1}: ${d.correct ? '✅' : '❌'}</li>`)
+    .join('');
+  out.innerHTML = `<div class="card"><strong>Resultado:</strong> ${score.correct}/${score.total} (${score.percent}%)<br/>Certas: ${score.correct} | Erradas: ${wrong}<ul>${list}</ul></div>`;
+}
+
+function applyConfig() {
+  if (randChk.checked) {
+    data.questions.sort(() => Math.random() - 0.5);
+  }
+  const cnt = parseInt(countInput.value, 10);
+  if (cnt > 0) {
+    data.questions = data.questions.slice(0, cnt);
+  }
+  const max = parseInt(maxTimeInput.value, 10);
+  remaining = max > 0 ? max * 60 : null;
+  seconds = 0;
+  renderClock();
+  configBox.style.display = 'none';
+  renderQuestion();
+}
+
+async function autoSubmit() {
+  saveCurrent();
+  const res = await api('/api/attempts', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ examId, answers }) });
+  show(res);
+  document.getElementById('form').innerHTML = '';
 }
 
 load();
