@@ -121,6 +121,15 @@ node regexPatternGenerator.js
 
 O script imprime um objeto com três strings (`regexEnunciado`, `regexOpcoes` e
 `regexResposta`) que podem ser usadas posteriormente para importar questões.
+Um exemplo de saída para a questão acima:
+
+```
+{
+  regexEnunciado: '^NEW QUESTION\\s*\\d+',
+  regexOpcoes: '^([A-D])[\\.]\\s+(.*)',
+  regexResposta: '^(?:Answer|Correct Answer):\\s*([A-D])'
+}
+```
 
 Na tela **Importar Provas** do aplicativo, também é possível colar uma questão
 de exemplo e clicar em **Gerar padrões** para preencher automaticamente os
