@@ -3,6 +3,8 @@ const examId = new URLSearchParams(location.search).get('examId');
 
 if (!examId) { document.body.innerHTML = '<p class="container">examId obrigatório.</p>'; throw new Error('no examId'); }
 
+let allQuestions = [];
+
 async function loadExam() {
   const data = await api('/api/exams/' + examId);
   document.getElementById('crumbExam').textContent = data.exam.title;
@@ -39,10 +41,20 @@ function resetForm() {
 }
 
 async function loadList() {
-  const list = await api('/api/questions?examId=' + examId);
+  allQuestions = await api('/api/questions?examId=' + examId);
+  document.getElementById('qCount').textContent = 'Total: ' + allQuestions.length;
+  renderList();
+}
+
+function renderList() {
+  const term = (document.getElementById('search').value || '').trim().toLowerCase();
+  const filtered = term ? allQuestions.filter(q => (q.text || '').toLowerCase().includes(term)) : allQuestions;
   const box = document.getElementById('list'); box.innerHTML='';
-  if (!list.length) { box.innerHTML = '<p class="muted">Sem questões.</p>'; return; }
-  list.forEach(q => {
+  if (!filtered.length) {
+    box.innerHTML = `<p class="muted">${allQuestions.length ? 'Nenhuma questão encontrada.' : 'Sem questões.'}</p>`;
+    return;
+  }
+  filtered.forEach(q => {
     const wrap = document.createElement('div');
     wrap.className = 'card';
     const opts = q.options.map((o,i)=>{
@@ -107,5 +119,6 @@ document.getElementById('qForm').onsubmit = async (ev) => {
 
 document.getElementById('addOpt').onclick = () => addOptRow();
 document.getElementById('cancel').onclick = resetForm;
+document.getElementById('search').oninput = renderList;
 
 loadExam(); resetForm(); loadList();
