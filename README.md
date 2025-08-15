@@ -109,6 +109,19 @@ Padrão da resposta:  ^Answer:\s*([A-D])
 Se os padrões forem omitidos, o parser tenta detectar a estrutura pelas
 posições e espaçamentos do PDF.
 
+### Gerar expressões automaticamente
+
+Para auxiliar na criação dessas expressões, o script `regexPatternGenerator.js`
+analisa uma questão de exemplo e sugere padrões para enunciado, opções e
+resposta:
+
+```bash
+node regexPatternGenerator.js
+```
+
+O script imprime um objeto com três strings (`regexEnunciado`, `regexOpcoes` e
+`regexResposta`) que podem ser usadas posteriormente para importar questões.
+
 ---
 
 ## 📝 Variáveis de ambiente
