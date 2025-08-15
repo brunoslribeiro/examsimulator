@@ -248,6 +248,55 @@ app.delete('/api/questions/:id', async (req, res) => {
   }
 });
 
+// /api/questions/replace
+app.post('/api/questions/replace', async (req, res) => {
+  try {
+    const { examId, confirm } = req.body;
+
+    // 👇 sempre como string
+    const findStr = String(req.body.find ?? '');
+    const replaceStr = String(req.body.replace ?? '');
+
+    // 👇 validação por string vazia (aceita "0")
+    if (findStr.trim() === '') {
+      return res.status(400).json({ error: 'find is required' });
+    }
+
+    const escaped = findStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const findRegex = new RegExp(escaped, 'i');
+    const replaceRegex = new RegExp(escaped, 'gi');
+
+    const query = { text: findRegex };
+    if (examId) query.examId = examId;
+
+    const questions = await Question.find(query).select('_id text').lean();
+
+    const impacted = questions.map(q => {
+      const before = String(q.text ?? '');
+      const after  = before.replace(replaceRegex, replaceStr); // 👈 usa replaceStr
+      return { id: q._id, before, after };
+    }).filter(q => q.before !== q.after);
+
+    if (!confirm) {
+      return res.json({ count: impacted.length, questions: impacted });
+    }
+
+    // opcional: bulkWrite em vez de N updates
+    await Question.bulkWrite(
+      impacted.map(q => ({
+        updateOne: { filter: { _id: q.id }, update: { $set: { text: q.after } } }
+      })),
+      { ordered: false }
+    );
+
+    res.json({ updated: impacted.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
+
 // Import questions from a PDF. Accepts multipart/form-data with field 'file'.
 // Optional body fields: examId to append to an existing exam, title/description to create a new one
 app.post('/api/import/pdf', upload.single('file'), async (req, res) => {

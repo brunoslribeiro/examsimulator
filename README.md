@@ -14,6 +14,7 @@ Frontend em HTML/CSS/JS puro (tema claro/escuro), backend em **Node.js + Express
 - Tema **Light/Dark** com persistência no navegador.
 - Menu de administração para fácil navegação.
 - Importação de questões a partir de arquivos **PDF**.
+- Substituição em massa de termos nos enunciados com pré-visualização.
 
 ---
 
@@ -110,6 +111,25 @@ Form-data:
 O retorno contém a quantidade de questões importadas e o `examId` utilizado.
 
 Também existe uma interface web em `/import-pdf.html`, acessível pelo menu **Importar PDF**, para realizar a importação pelo navegador.
+
+## 🔄 Substituição de termos nos enunciados
+
+Permite buscar um termo em todos os enunciados e substituí-lo em massa. É possível visualizar previamente quais questões serão afetadas e, após confirmação, aplicar as alterações.
+
+Endpoint:
+
+```
+POST /api/questions/replace
+```
+
+Body JSON:
+
+- `examId` (opcional): limita a substituição a uma prova.
+- `find`: termo a ser buscado (obrigatório). Caracteres especiais (como parênteses) são tratados literalmente.
+- `replace`: texto de substituição.
+- `confirm` (opcional): defina como `true` para aplicar; se omitido, retorna apenas o preview.
+
+A página `questions.html` possui uma seção **Substituir termos** para facilitar o uso.
 
 ---
 
