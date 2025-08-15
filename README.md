@@ -122,6 +122,10 @@ node regexPatternGenerator.js
 O script imprime um objeto com três strings (`regexEnunciado`, `regexOpcoes` e
 `regexResposta`) que podem ser usadas posteriormente para importar questões.
 
+Na tela **Importar Provas** do aplicativo, também é possível colar uma questão
+de exemplo e clicar em **Gerar padrões** para preencher automaticamente os
+campos de regex do formulário.
+
 ---
 
 ## 📝 Variáveis de ambiente

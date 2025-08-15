@@ -10,6 +10,8 @@ const pdfResult = document.getElementById('pdfResult');
 const qPattern = document.getElementById('qPattern');
 const oPattern = document.getElementById('oPattern');
 const aPattern = document.getElementById('aPattern');
+const sampleQuestion = document.getElementById('sampleQuestion');
+const genBtn = document.getElementById('generatePatterns');
 
 if (sampleBox) {
   fetch('sample-import.json')
@@ -45,6 +47,50 @@ jsonForm.onsubmit = async (ev) => {
     toast('Erro na importação');
   }
 };
+
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
+}
+
+function generatePatterns(example) {
+  const lines = example.trim().split(/\r?\n/);
+  const answerIndex = lines.findIndex(l => /^(?:Correct Answer|Answer):/i.test(l));
+  const optionStart = lines.findIndex(l => /^[A-Z][.)]\s/.test(l));
+  const optionLines = lines.slice(optionStart, answerIndex > 0 ? answerIndex : undefined);
+  const optMatch = optionLines[0].match(/^([A-Z])([.)])\s/);
+  const firstLetter = optMatch[1];
+  const optDelim = optMatch[2];
+  let lastLetter = firstLetter;
+  optionLines.forEach(l => {
+    const m = l.match(/^([A-Z])[.)]\s/);
+    if (m && m[1] > lastLetter) lastLetter = m[1];
+  });
+  const letterClass = `[${firstLetter}-${lastLetter}]`;
+  const optionPrefix = `${letterClass}[${optDelim === '.' ? '\\.' : '\\)'}]`;
+  const headerLine = lines[0];
+  const headerMatch = headerLine.match(/^(\D*?)\s*\d+/);
+  const headerPrefix = headerMatch ? escapeRegExp(headerMatch[1].trim()) : '.*?';
+  const questionHeader = `^${headerPrefix}\\s*\\d+`;
+  const regexEnunciado = `${questionHeader}\\n(?:- \\(.+\\)\\n)?([\\s\\S]+?)\\n(?=${optionPrefix})`;
+  const regexOpcoes = `^(${letterClass})[${optDelim === '.' ? '\\.' : '\\)'}]\\s+([\\s\\S]+?)(?=\\n${optionPrefix}|\\n(?:Answer|Correct Answer))`;
+  const regexResposta = `(?:Answer|Correct Answer):\\s*(${letterClass})`;
+  return { regexEnunciado, regexOpcoes, regexResposta };
+}
+
+if (genBtn) {
+  genBtn.onclick = () => {
+    const example = sampleQuestion.value.trim();
+    if (!example) { alert('Cole uma questão de exemplo'); return; }
+    try {
+      const patterns = generatePatterns(example);
+      qPattern.value = patterns.regexEnunciado;
+      oPattern.value = patterns.regexOpcoes;
+      aPattern.value = patterns.regexResposta;
+    } catch (e) {
+      alert('Falha ao gerar padrões: ' + e.message);
+    }
+  };
+}
 
 pdfForm.onsubmit = async ev => {
   ev.preventDefault();

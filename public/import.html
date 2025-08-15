@@ -37,6 +37,10 @@
         <label>Selecione o arquivo
           <input type="file" id="pdfFile" accept="application/pdf" required />
         </label>
+        <label>Exemplo de questão
+          <textarea id="sampleQuestion" rows="6" placeholder="Cole uma questão completa"></textarea>
+        </label>
+        <button type="button" id="generatePatterns">Gerar padrões</button>
         <label>Padrão do enunciado
           <input type="text" id="qPattern" placeholder="^NEW QUESTION\\s+\\d+" />
         </label>
@@ -46,7 +50,7 @@
         <label>Padrão da resposta
           <input type="text" id="aPattern" placeholder="^Answer:\\s*([A-D])" />
         </label>
-        <p class="muted">Use expressões regulares com grupos para capturar rótulos e textos.</p>
+        <p class="muted">Use expressões regulares com grupos para capturar rótulos e textos ou gere a partir de um exemplo.</p>
         <button type="submit">Importar PDF</button>
       </form>
       <div id="pdfResult" class="muted" style="margin-top:8px"></div>
