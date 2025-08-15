@@ -13,6 +13,7 @@ Frontend em HTML/CSS/JS puro (tema claro/escuro), backend em **Node.js + Express
 - Upload de arquivos para questões.
 - Tema **Light/Dark** com persistência no navegador.
 - Menu de administração para fácil navegação.
+- Importação de questões a partir de arquivos **PDF**.
 
 ---
 
@@ -78,6 +79,36 @@ http://localhost:3000
 2. No menu **Administração**, cadastre suas provas.
 3. Adicione questões e alternativas (texto ou imagem).
 4. Aplique a prova para visualizar no modo de execução.
+
+---
+
+## 📥 Importação de perguntas via PDF
+
+É possível importar questões diretamente de um arquivo PDF que siga o formato:
+
+```
+NEW QUESTION 1
+Pergunta...
+A) Opção 1
+B) Opção 2
+Answer: A
+```
+
+Endpoint:
+
+```
+POST /api/import/pdf
+```
+
+Form-data:
+
+- `file`: arquivo PDF com as perguntas.
+- `examId` (opcional): ID de uma prova existente para anexar as questões.
+- `title` e `description` (opcionais): usados ao criar uma nova prova se `examId` não for informado.
+
+O retorno contém a quantidade de questões importadas e o `examId` utilizado.
+
+Também existe uma interface web em `/import-pdf.html`, acessível pelo menu **Importar PDF**, para realizar a importação pelo navegador.
 
 ---
 

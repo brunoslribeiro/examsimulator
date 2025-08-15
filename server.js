@@ -4,6 +4,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const cors = require('cors');
+const pdfParse = require('pdf-parse');
 
 // --- Config ---
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017/examdb';
@@ -20,6 +21,38 @@ function saveBase64Image(data) {
   const filepath = path.join(UPLOAD_DIR, filename);
   fs.writeFileSync(filepath, Buffer.from(match[2], 'base64'));
   return '/uploads/' + filename;
+}
+
+// Parse text extracted from PDF into question objects
+function parsePdfQuestions(text) {
+  const lines = text.split(/\r?\n/).map(l => l.trim());
+  const questions = [];
+  let current = null;
+  const optionRegex = /^([A-Z])[\).]\s*(.+)$/;
+  const answerRegex = /^Answer:\s*([A-Z]+)$/i;
+  for (const line of lines) {
+    if (!line) continue;
+    if (/^NEW QUESTION/i.test(line)) {
+      if (current) questions.push(current);
+      current = { text: '', options: [], answers: [] };
+      continue;
+    }
+    if (!current) continue;
+    if (/^\(Exam Topic/i.test(line)) continue;
+    const ansMatch = line.match(answerRegex);
+    if (ansMatch) {
+      current.answers = ansMatch[1].toUpperCase().split('').map(c => c.charCodeAt(0) - 65);
+      continue;
+    }
+    const optMatch = line.match(optionRegex);
+    if (optMatch) {
+      current.options.push(optMatch[2].trim());
+      continue;
+    }
+    current.text = current.text ? current.text + ' ' + line : line;
+  }
+  if (current) questions.push(current);
+  return questions;
 }
 
 // --- App ---
@@ -170,6 +203,39 @@ app.delete('/api/questions/:id', async (req, res) => {
     const q = await Question.findByIdAndDelete(req.params.id);
     if (!q) return res.status(404).json({ error: 'Question not found' });
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Import questions from a PDF. Accepts multipart/form-data with field 'file'.
+// Optional body fields: examId to append to an existing exam, title/description to create a new one
+app.post('/api/import/pdf', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No PDF uploaded' });
+    const dataBuffer = fs.readFileSync(req.file.path);
+    const pdf = await pdfParse(dataBuffer);
+    fs.unlinkSync(req.file.path);
+    const parsed = parsePdfQuestions(pdf.text);
+    if (!parsed.length) return res.status(400).json({ error: 'No questions found in PDF' });
+
+    let exam = null;
+    if (req.body.examId) {
+      exam = await Exam.findById(req.body.examId);
+    }
+    if (!exam) {
+      const title = req.body.title || 'Imported Exam';
+      exam = await Exam.create({ title, description: req.body.description || '' });
+    }
+
+    const docs = parsed.map(q => ({
+      examId: exam._id,
+      text: q.text,
+      type: q.answers.length > 1 ? 'multiple' : 'single',
+      options: q.options.map((opt, idx) => ({ text: opt, isCorrect: q.answers.includes(idx) }))
+    }));
+    await Question.insertMany(docs);
+    res.json({ imported: docs.length, examId: exam._id });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
