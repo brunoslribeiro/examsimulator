@@ -169,9 +169,56 @@ async function parsePdfQuestions(buffer, opts = {}) {
   return detectQuestions(paragraphs, opts);
 }
 
+function parseTextByPatterns(text, patterns = {}) {
+  const { question, option, answer } = patterns;
+  const qRe = question ? new RegExp(question, 'i') : null;
+  const oRe = option ? new RegExp(option, 'i') : null;
+  const aRe = answer ? new RegExp(answer, 'i') : null;
+  const lines = text.split(/\r?\n/);
+  const questions = [];
+  let current = null;
+  for (const line of lines) {
+    if (qRe && qRe.test(line)) {
+      if (current) questions.push(current);
+      current = { prompt: line.trim(), choices: [], answer: [] };
+      continue;
+    }
+    if (current && oRe) {
+      const m = line.match(oRe);
+      if (m) {
+        const label = m[1] || String.fromCharCode(65 + current.choices.length);
+        const text = m[2] || line.trim();
+        current.choices.push({ label, text });
+        continue;
+      }
+    }
+    if (current && aRe) {
+      const m = line.match(aRe);
+      if (m) {
+        const letters = m[1] ? m[1].match(/[A-Z]/g) : null;
+        current.answer = letters || [];
+        continue;
+      }
+    }
+    if (current) {
+      current.prompt += ' ' + line.trim();
+    }
+  }
+  if (current) questions.push(current);
+  return questions.map(q => ({ ...q, confidence: q.choices.length ? 1 : 0.3 }));
+}
+
+async function parsePdfWithPatterns(buffer, patterns, opts = {}) {
+  await ensurePdfjs();
+  const paragraphs = await extractParagraphs(buffer, opts);
+  const text = paragraphs.map(p => p.text).join('\n');
+  return parseTextByPatterns(text, patterns);
+}
+
 module.exports = {
   extractParagraphs,
   detectQuestions,
   parsePdfQuestions,
   isAvailable,
+  parsePdfWithPatterns,
 };

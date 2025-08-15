@@ -37,6 +37,16 @@
         <label>Selecione o arquivo
           <input type="file" id="pdfFile" accept="application/pdf" required />
         </label>
+        <label>Padrão do enunciado
+          <input type="text" id="qPattern" placeholder="^NEW QUESTION\\s+\\d+" />
+        </label>
+        <label>Padrão das opções
+          <input type="text" id="oPattern" placeholder="^(A|B|C|D)[\).]\s+(.*)" />
+        </label>
+        <label>Padrão da resposta
+          <input type="text" id="aPattern" placeholder="^Answer:\\s*([A-D])" />
+        </label>
+        <p class="muted">Use expressões regulares com grupos para capturar rótulos e textos.</p>
         <button type="submit">Importar PDF</button>
       </form>
       <div id="pdfResult" class="muted" style="margin-top:8px"></div>

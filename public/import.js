@@ -7,6 +7,9 @@ const pdfForm = document.getElementById('importPdfForm');
 const pdfFile = document.getElementById('pdfFile');
 const pdfTitle = document.getElementById('pdfTitle');
 const pdfResult = document.getElementById('pdfResult');
+const qPattern = document.getElementById('qPattern');
+const oPattern = document.getElementById('oPattern');
+const aPattern = document.getElementById('aPattern');
 
 if (sampleBox) {
   fetch('sample-import.json')
@@ -51,6 +54,9 @@ pdfForm.onsubmit = async ev => {
   const fd = new FormData();
   fd.append('file', file);
   fd.append('title', title);
+  if (qPattern.value) fd.append('qPattern', qPattern.value);
+  if (oPattern.value) fd.append('oPattern', oPattern.value);
+  if (aPattern.value) fd.append('aPattern', aPattern.value);
   try {
     const res = await fetch('/api/import-pdf', { method: 'POST', body: fd });
     const json = await res.json();
