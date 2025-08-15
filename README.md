@@ -96,7 +96,7 @@ mais novos em ES Modules.
 Se essa biblioteca não estiver instalada, o endpoint `/api/import-pdf`
 retornará **"PDF import not available: Install optional dependency pdfjs-dist to enable PDF parsing"**.
 
-Ao importar, é possível informar expressões regulares para localizar
+Ao importar, é necessário informar expressões regulares para localizar
 enunciados, opções e respostas diretamente no texto extraído. Use grupos
 capturados para identificar rótulos e conteúdos. Exemplo:
 
@@ -105,9 +105,6 @@ Padrão do enunciado: ^NEW QUESTION\s+\d+
 Padrão das opções:   ^(A|B|C|D)[\).]\s+(.*)
 Padrão da resposta:  ^Answer:\s*([A-D])
 ```
-
-Se os padrões forem omitidos, o parser tenta detectar a estrutura pelas
-posições e espaçamentos do PDF.
 
 O texto do PDF é pré-processado inserindo quebras de linha antes de cada
 correspondência dos padrões de enunciado, opção e resposta. Dessa forma,

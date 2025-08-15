@@ -96,11 +96,15 @@ pdfForm.onsubmit = async ev => {
   const file = pdfFile.files[0];
   const title = pdfTitle.value.trim();
   if (!file || !title) { alert('Informe título e arquivo'); return; }
+  if (!qPattern.value || !oPattern.value) {
+    alert('Informe os padrões de enunciado e opções');
+    return;
+  }
   const fd = new FormData();
   fd.append('file', file);
   fd.append('title', title);
-  if (qPattern.value) fd.append('qPattern', qPattern.value);
-  if (oPattern.value) fd.append('oPattern', oPattern.value);
+  fd.append('qPattern', qPattern.value);
+  fd.append('oPattern', oPattern.value);
   if (aPattern.value) fd.append('aPattern', aPattern.value);
   try {
     const res = await fetch('/api/import-pdf', { method: 'POST', body: fd });

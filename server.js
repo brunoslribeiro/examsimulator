@@ -232,16 +232,15 @@ app.post('/api/import-pdf', upload.single('file'), async (req, res) => {
     const fileData = fs.readFileSync(req.file.path);
     const bytes = new Uint8Array(fileData);
     fs.unlink(req.file.path, () => {});
-    let parsed;
-    if (req.body.qPattern || req.body.oPattern || req.body.aPattern) {
-      parsed = await pdfParser.parsePdfWithPatterns(bytes, {
-        question: req.body.qPattern,
-        option: req.body.oPattern,
-        answer: req.body.aPattern,
-      });
-    } else {
-      parsed = await pdfParser.parsePdfQuestions(bytes);
+    const { qPattern, oPattern, aPattern } = req.body;
+    if (!qPattern || !oPattern) {
+      return res.status(400).json({ error: 'qPattern and oPattern are required' });
     }
+    const parsed = await pdfParser.parsePdfWithPatterns(bytes, {
+      question: qPattern,
+      option: oPattern,
+      answer: aPattern,
+    });
     const exam = await Exam.create({ title, description: '' });
     if (parsed.length) {
       const qs = parsed.map(p => ({
