@@ -253,11 +253,15 @@ app.post('/api/questions/replace', async (req, res) => {
   try {
     const { examId, find, replace, confirm } = req.body;
     if (!find) return res.status(400).json({ error: 'find is required' });
-    const query = { text: { $regex: find, $options: 'i' } };
+
+    const escaped = find.replace(/[.*+?^${}()|[\]\\]/g, '\$&');
+    const queryRegex = new RegExp(escaped, 'i');
+    const replaceRegex = new RegExp(escaped, 'gi');
+    const query = { text: { $regex: queryRegex } };
     if (examId) query.examId = examId;
     const questions = await Question.find(query);
     const impacted = questions.map(q => {
-      const after = (q.text || '').replace(new RegExp(find, 'gi'), replace);
+      const after = (q.text || '').replace(replaceRegex, replace);
       return { id: q._id, before: q.text, after };
     }).filter(q => q.before !== q.after);
     if (!confirm) {
