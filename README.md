@@ -79,6 +79,64 @@ http://localhost:3000
 3. Adicione questões e alternativas (texto ou imagem).
 4. Aplique a prova para visualizar no modo de execução.
 
+### Importar questões de PDF (opcional)
+
+Para habilitar a importação automática de questões a partir de arquivos PDF,
+instale a dependência opcional `pdfjs-dist`:
+
+```bash
+npm install pdfjs-dist
+```
+
+O parser tenta automaticamente os caminhos `pdfjs-dist/legacy/build/pdf.js`,
+`pdfjs-dist/build/pdf.js`, `pdfjs-dist/legacy/build/pdf.mjs` e
+`pdfjs-dist/build/pdf.mjs`, suportando tanto os builds em CommonJS quanto os
+mais novos em ES Modules.
+
+Se essa biblioteca não estiver instalada, o endpoint `/api/import-pdf`
+retornará **"PDF import not available: Install optional dependency pdfjs-dist to enable PDF parsing"**.
+
+Ao importar, é necessário informar expressões regulares para localizar
+enunciados, opções e respostas diretamente no texto extraído. Use grupos
+capturados para identificar rótulos e conteúdos. Exemplo:
+
+```
+Padrão do enunciado: ^NEW QUESTION\s+\d+
+Padrão das opções:   ^(A|B|C|D)[\).]\s+(.*)
+Padrão da resposta:  ^Answer:\s*([A-D])
+```
+
+O texto do PDF é pré-processado inserindo quebras de linha antes de cada
+correspondência dos padrões de enunciado, opção e resposta. Dessa forma,
+caso múltiplas opções ou o gabarito estejam na mesma linha, eles são
+separados adequadamente antes da análise.
+
+### Gerar expressões automaticamente
+
+Para auxiliar na criação dessas expressões, o script `regexPatternGenerator.js`
+analisa uma questão de exemplo e sugere padrões para enunciado, opções e
+resposta:
+
+```bash
+node regexPatternGenerator.js
+```
+
+O script imprime um objeto com três strings (`regexEnunciado`, `regexOpcoes` e
+`regexResposta`) que podem ser usadas posteriormente para importar questões.
+Um exemplo de saída para a questão acima:
+
+```
+{
+  regexEnunciado: '^NEW QUESTION\\s*\\d+',
+  regexOpcoes: '^([A-D])[\\.]\\s+(.*)',
+  regexResposta: '^(?:Answer|Correct Answer):\\s*([A-D])'
+}
+```
+
+Na tela **Importar Provas** do aplicativo, também é possível colar uma questão
+de exemplo e clicar em **Gerar padrões** para preencher automaticamente os
+campos de regex do formulário.
+
 ---
 
 ## 📝 Variáveis de ambiente

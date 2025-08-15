@@ -4,6 +4,10 @@ const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const cors = require('cors');
+const pdfParser = require('./pdfLayoutParser');
+if (!pdfParser.isAvailable) {
+  console.warn('pdfjs-dist not installed; PDF import disabled. Run "npm install pdfjs-dist" to enable PDF parsing.');
+}
 
 // --- Config ---
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017/examdb';
@@ -18,7 +22,8 @@ function saveBase64Image(data) {
   const ext = match[1].split('/')[1];
   const filename = Date.now() + '-' + Math.round(Math.random() * 1e9) + '.' + ext;
   const filepath = path.join(UPLOAD_DIR, filename);
-  fs.writeFileSync(filepath, Buffer.from(match[2], 'base64'));
+  const bytes = Uint8Array.from(atob(match[2]), c => c.charCodeAt(0));
+  fs.writeFileSync(filepath, bytes);
   return '/uploads/' + filename;
 }
 
@@ -214,6 +219,44 @@ app.post('/api/import', async (req, res) => {
   }
 });
 
+// Import questions from uploaded PDF
+app.post('/api/import-pdf', upload.single('file'), async (req, res) => {
+  if (!pdfParser.isAvailable) {
+    return res.status(501).json({
+      error: 'PDF import not available: Install optional dependency pdfjs-dist to enable PDF parsing'
+    });
+  }
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const title = req.body.title || 'Imported PDF';
+    const fileData = fs.readFileSync(req.file.path);
+    const bytes = new Uint8Array(fileData);
+    fs.unlink(req.file.path, () => {});
+    const { qPattern, oPattern, aPattern } = req.body;
+    if (!qPattern || !oPattern) {
+      return res.status(400).json({ error: 'qPattern and oPattern are required' });
+    }
+    const parsed = await pdfParser.parsePdfWithPatterns(bytes, {
+      question: qPattern,
+      option: oPattern,
+      answer: aPattern,
+    });
+    const exam = await Exam.create({ title, description: '' });
+    if (parsed.length) {
+      const qs = parsed.map(p => ({
+        examId: exam._id,
+        text: p.prompt,
+        type: 'single',
+        options: p.choices.map(o => ({ text: o.text, isCorrect: p.answer.includes(o.label) }))
+      }));
+      await Question.insertMany(qs);
+    }
+    res.json({ imported: parsed.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Attempts (grading)
 // body: { examId, answers: [{ questionId, selectedIndices: number[] }] }
 app.post('/api/attempts', async (req, res) => {
@@ -244,11 +287,16 @@ app.post('/api/attempts', async (req, res) => {
 
 // --- DB & start ---
 async function start() {
-  await mongoose.connect(MONGO_URL, { dbName: undefined });
-  console.log('Connected to MongoDB:', MONGO_URL);
+  try {
+    await mongoose.connect(MONGO_URL, { serverSelectionTimeoutMS: 5000 });
+    console.log('Connected to MongoDB:', MONGO_URL);
+  } catch (err) {
+    console.error('MongoDB connection failed:', err.message);
+    console.error('Ensure MongoDB is running at', MONGO_URL);
+    process.exit(1);
+  }
+
   app.listen(PORT, () => console.log('Server running on http://localhost:' + PORT));
 }
-start().catch(err => {
-  console.error('Failed to start:', err);
-  process.exit(1);
-});
+
+start();
