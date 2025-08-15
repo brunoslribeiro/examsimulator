@@ -255,9 +255,8 @@ app.post('/api/questions/replace', async (req, res) => {
     if (!find) return res.status(400).json({ error: 'find is required' });
 
     const escaped = find.replace(/[.*+?^${}()|[\]\\]/g, '\$&');
-    const queryRegex = new RegExp(escaped, 'i');
+    const query = { text: { $regex: escaped, $options: 'i' } };
     const replaceRegex = new RegExp(escaped, 'gi');
-    const query = { text: { $regex: queryRegex } };
     if (examId) query.examId = examId;
     const questions = await Question.find(query);
     const impacted = questions.map(q => {

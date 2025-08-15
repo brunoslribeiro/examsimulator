@@ -125,7 +125,7 @@ POST /api/questions/replace
 Body JSON:
 
 - `examId` (opcional): limita a substituição a uma prova.
-- `find`: termo a ser buscado (obrigatório). Caracteres especiais são tratados literalmente.
+- `find`: termo a ser buscado (obrigatório). Caracteres especiais (como parênteses) são tratados literalmente.
 - `replace`: texto de substituição.
 - `confirm` (opcional): defina como `true` para aplicar; se omitido, retorna apenas o preview.
 
