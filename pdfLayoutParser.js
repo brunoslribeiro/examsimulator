@@ -177,23 +177,25 @@ function parseTextByPatterns(text, patterns = {}) {
   const lines = text.split(/\r?\n/);
   const questions = [];
   let current = null;
-  for (const line of lines) {
-    if (qRe && qRe.test(line)) {
+  for (let line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (qRe && qRe.test(trimmed)) {
       if (current) questions.push(current);
-      current = { prompt: line.trim(), choices: [], answer: [] };
+      current = { prompt: trimmed, choices: [], answer: [] };
       continue;
     }
     if (current && oRe) {
-      const m = line.match(oRe);
+      const m = trimmed.match(oRe);
       if (m) {
         const label = m[1] || String.fromCharCode(65 + current.choices.length);
-        const text = m[2] || line.trim();
+        const text = m[2] || trimmed;
         current.choices.push({ label, text });
         continue;
       }
     }
     if (current && aRe) {
-      const m = line.match(aRe);
+      const m = trimmed.match(aRe);
       if (m) {
         const letters = m[1] ? m[1].match(/[A-Z]/g) : null;
         current.answer = letters || [];
@@ -201,7 +203,7 @@ function parseTextByPatterns(text, patterns = {}) {
       }
     }
     if (current) {
-      current.prompt += ' ' + line.trim();
+      current.prompt += ' ' + trimmed;
     }
   }
   if (current) questions.push(current);
@@ -211,7 +213,16 @@ function parseTextByPatterns(text, patterns = {}) {
 async function parsePdfWithPatterns(buffer, patterns, opts = {}) {
   await ensurePdfjs();
   const paragraphs = await extractParagraphs(buffer, opts);
-  const text = paragraphs.map(p => p.text).join('\n');
+  let text = paragraphs.map(p => p.text).join('\n');
+  if (patterns.question) {
+    const detect = patterns.question.replace(/^\^/, '');
+    try {
+      const qDetectRe = new RegExp(detect, 'g');
+      text = text.replace(qDetectRe, '\n$&');
+    } catch (e) {
+      // ignore invalid regex for detection
+    }
+  }
   return parseTextByPatterns(text, patterns);
 }
 
