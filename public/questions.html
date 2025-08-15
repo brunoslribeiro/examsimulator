@@ -40,6 +40,17 @@
       </div>
       <div id="list"></div>
     </div>
+
+    <div class="card">
+      <h2>Substituir termos</h2>
+      <div class="row" style="gap:6px">
+        <input type="text" id="findTerm" placeholder="Buscar" />
+        <input type="text" id="replaceTerm" placeholder="Substituir por" />
+        <button type="button" id="previewReplace" class="secondary">Pré-visualizar</button>
+        <button type="button" id="applyReplace" class="danger" style="display:none">Confirmar</button>
+      </div>
+      <div id="replacePreview" class="muted" style="margin-top:8px"></div>
+    </div>
   </div>
   <script src="common.js"></script>
   <script src="questions.js"></script>

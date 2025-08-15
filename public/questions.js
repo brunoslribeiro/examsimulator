@@ -121,4 +121,46 @@ document.getElementById('addOpt').onclick = () => addOptRow();
 document.getElementById('cancel').onclick = resetForm;
 document.getElementById('search').oninput = renderList;
 
+let previewCount = 0;
+document.getElementById('previewReplace').onclick = async () => {
+  const find = document.getElementById('findTerm').value.trim();
+  const replace = document.getElementById('replaceTerm').value || '';
+  if (!find) { alert('Informe o termo a buscar'); return; }
+  const res = await api('/api/questions/replace', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ examId, find, replace })
+  });
+  const box = document.getElementById('replacePreview');
+  if (res.error) {
+    box.textContent = res.error;
+    document.getElementById('applyReplace').style.display = 'none';
+    return;
+  }
+  previewCount = res.count || 0;
+  if (!previewCount) {
+    box.textContent = 'Nenhuma questão afetada.';
+    document.getElementById('applyReplace').style.display = 'none';
+    return;
+  }
+  box.innerHTML = res.questions.map(q => `<p><strong>${q.before}</strong><br/>➡️ ${q.after}</p>`).join('');
+  document.getElementById('applyReplace').style.display = 'inline-block';
+};
+
+document.getElementById('applyReplace').onclick = async () => {
+  const find = document.getElementById('findTerm').value.trim();
+  const replace = document.getElementById('replaceTerm').value || '';
+  if (!find) return;
+  if (!confirm('Aplicar substituição em ' + previewCount + ' questões?')) return;
+  const res = await api('/api/questions/replace', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ examId, find, replace, confirm: true })
+  });
+  toast('Atualizado em ' + res.updated + ' questões');
+  document.getElementById('replacePreview').textContent = '';
+  document.getElementById('applyReplace').style.display = 'none';
+  loadList();
+};
+
 loadExam(); resetForm(); loadList();

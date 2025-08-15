@@ -248,6 +248,28 @@ app.delete('/api/questions/:id', async (req, res) => {
   }
 });
 
+// Replace terms in question statements
+app.post('/api/questions/replace', async (req, res) => {
+  try {
+    const { examId, find, replace, confirm } = req.body;
+    if (!find) return res.status(400).json({ error: 'find is required' });
+    const query = { text: { $regex: find, $options: 'i' } };
+    if (examId) query.examId = examId;
+    const questions = await Question.find(query);
+    const impacted = questions.map(q => {
+      const after = (q.text || '').replace(new RegExp(find, 'gi'), replace);
+      return { id: q._id, before: q.text, after };
+    }).filter(q => q.before !== q.after);
+    if (!confirm) {
+      return res.json({ count: impacted.length, questions: impacted });
+    }
+    await Promise.all(impacted.map(q => Question.findByIdAndUpdate(q.id, { text: q.after })));
+    res.json({ updated: impacted.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Import questions from a PDF. Accepts multipart/form-data with field 'file'.
 // Optional body fields: examId to append to an existing exam, title/description to create a new one
 app.post('/api/import/pdf', upload.single('file'), async (req, res) => {
