@@ -4,7 +4,7 @@ let editingId = null;
 const titleInput = document.getElementById('title');
 const descInput = document.getElementById('description');
 const saveBtn = document.getElementById('saveExam');
-const cancelBtn = document.getElementById('cancelEdit');
+const cancelBtn = document.getElementById('cancelExam');
 const modal = document.getElementById('exam-modal');
 const openBtn = document.getElementById('openExam');
 
@@ -14,7 +14,7 @@ function resetForm(){
   titleInput.value = '';
   descInput.value = '';
   saveBtn.textContent = '💾 Salvar';
-  cancelBtn.style.display = 'none';
+  cancelBtn.textContent = '✖️ Cancelar';
   modal.classList.add('hidden');
 }
 
@@ -24,12 +24,18 @@ function startEdit(exam){
   titleInput.value = exam.title;
   descInput.value = exam.description || '';
   saveBtn.textContent = '🔄 Atualizar';
-  cancelBtn.style.display = 'inline-block';
+  cancelBtn.textContent = '✖️ Cancelar';
   modal.classList.remove('hidden');
 }
 
 openBtn.onclick = () => { resetForm(); modal.classList.remove('hidden'); };
 cancelBtn.onclick = resetForm;
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+    resetForm();
+  }
+});
 
 async function load() {
   const list = await api('/api/exams');
