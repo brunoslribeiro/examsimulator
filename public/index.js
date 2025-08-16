@@ -5,6 +5,8 @@ const titleInput = document.getElementById('title');
 const descInput = document.getElementById('description');
 const saveBtn = document.getElementById('saveExam');
 const cancelBtn = document.getElementById('cancelEdit');
+const modal = document.getElementById('exam-modal');
+const openBtn = document.getElementById('openExam');
 
 function resetForm(){
   editingId = null;
@@ -13,6 +15,7 @@ function resetForm(){
   descInput.value = '';
   saveBtn.textContent = '💾 Salvar';
   cancelBtn.style.display = 'none';
+  modal.classList.add('hidden');
 }
 
 function startEdit(exam){
@@ -22,9 +25,10 @@ function startEdit(exam){
   descInput.value = exam.description || '';
   saveBtn.textContent = '🔄 Atualizar';
   cancelBtn.style.display = 'inline-block';
-  window.scrollTo({top:0, behavior:'smooth'});
+  modal.classList.remove('hidden');
 }
 
+openBtn.onclick = () => { resetForm(); modal.classList.remove('hidden'); };
 cancelBtn.onclick = resetForm;
 
 async function load() {
