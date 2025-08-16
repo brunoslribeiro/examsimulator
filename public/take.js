@@ -172,40 +172,72 @@ function renderQuestion(){
     fs.appendChild(legend);
     const hasCode = q.options.some(o=>o.code);
     if(hasCode){
-      const wrapper=document.createElement('div'); wrapper.className='code-carousel';
-      const prev=document.createElement('button'); prev.type='button'; prev.textContent='◀';
-      const next=document.createElement('button'); next.type='button'; next.textContent='▶';
-      const view=document.createElement('div'); view.className='view';
-      const track=document.createElement('div'); track.className='track';
-      q.options.forEach((o,idx)=>{
-        const slide=document.createElement('div'); slide.className='slide';
-        const label=document.createElement('label'); label.className='option-card';
+      const layout=document.createElement('div'); layout.className='code-layout';
+      const list=document.createElement('div'); list.className='option-list'; list.setAttribute('role','listbox');
+      const viewer=document.createElement('div'); viewer.className='code-viewer'; viewer.setAttribute('aria-label','Code viewer');
+      const pre=document.createElement('pre'); const code=document.createElement('code'); pre.appendChild(code); viewer.appendChild(pre);
+      const controls=document.createElement('div'); controls.className='code-controls';
+      const copyBtn=document.createElement('button'); copyBtn.type='button'; copyBtn.textContent='Copy'; copyBtn.title='Copy to clipboard';
+      const wrapBtn=document.createElement('button'); wrapBtn.type='button'; wrapBtn.textContent='Wrap'; wrapBtn.title='Toggle wrap';
+      const fullBtn=document.createElement('button'); fullBtn.type='button'; fullBtn.textContent='Full'; fullBtn.title='Toggle fullscreen';
+      controls.append(copyBtn, wrapBtn, fullBtn); viewer.appendChild(controls);
+      let currentIdx=null;
+
+      function showCode(idx){
+        const opt=q.options[idx];
+        code.textContent=opt.code||'';
+        code.className='';
+        if(opt.language) code.classList.add('language-'+opt.language);
+        pre.scrollTop=0;
+        if(window.hljs){
+          hljs.highlightElement(code);
+          if(window.hljs.lineNumbersBlock) hljs.lineNumbersBlock(code);
+        }
+        currentIdx=idx;
+      }
+
+      function createLabel(o,idx){
+        const label=document.createElement('label'); label.className='option-preview'; label.tabIndex=0; label.dataset.index=idx; label.setAttribute('role','option');
         const inp=document.createElement('input');
         inp.type=q.type==='multiple'?'checkbox':'radio';
         inp.name='opt'; inp.value=idx;
         const ans=state.answers[q._id];
         if(Array.isArray(ans)?ans.includes(idx):ans===idx) inp.checked=true;
         label.appendChild(inp);
-        const pre=document.createElement('pre');
-        const code=document.createElement('code');
-        code.textContent=o.code||'';
-        if(o.language) code.classList.add('language-'+o.language);
-        pre.appendChild(code);
-        label.appendChild(pre);
-        slide.appendChild(label);
-        track.appendChild(slide);
-      });
-      view.appendChild(track);
-      wrapper.append(prev, view, next);
-      fs.appendChild(wrapper);
-      let cIndex=0;
-      function update(){ track.style.transform=`translateX(-${cIndex*100}%)`; }
-      prev.onclick=()=>{ cIndex=(cIndex-1+q.options.length)%q.options.length; update(); };
-      next.onclick=()=>{ cIndex=(cIndex+1)%q.options.length; update(); };
-      update();
+        const preview=document.createElement('pre'); preview.className='code-preview'; preview.textContent=(o.code||'').split('\n').slice(0,5).join('\n');
+        label.appendChild(preview);
+        const chev=document.createElement('span'); chev.className='chevron'; chev.textContent='▸'; label.appendChild(chev);
+        label.addEventListener('click', e=>{ if(e.target!==inp){ inp.checked=q.type==='multiple'? !inp.checked : true; inp.dispatchEvent(new Event('change',{bubbles:true})); } showCode(idx); if(window.innerWidth<768) viewer.requestFullscreen(); });
+        label.addEventListener('keydown', e=>{ if(e.key===' '){ e.preventDefault(); label.classList.toggle('expanded'); } });
+        inp.addEventListener('change', ()=>{ showCode(idx); });
+        return label;
+      }
+
+      const itemHeight=90;
+      if(q.options.length>20){
+        const inner=document.createElement('div'); inner.style.position='relative'; inner.style.height=q.options.length*itemHeight+'px'; list.appendChild(inner);
+        function renderList(){ const scrollTop=list.scrollTop; const start=Math.floor(scrollTop/itemHeight); const end=Math.min(q.options.length, start+Math.ceil(list.clientHeight/itemHeight)+1); inner.innerHTML=''; for(let i=start;i<end;i++){ const lbl=createLabel(q.options[i],i); lbl.style.position='absolute'; lbl.style.top=(i*itemHeight)+'px'; inner.appendChild(lbl);} }
+        list.addEventListener('scroll', ()=>requestAnimationFrame(renderList));
+        renderList();
+      } else {
+        q.options.forEach((o,idx)=>list.appendChild(createLabel(o,idx)));
+      }
+
+      function toggleWrap(){ viewer.classList.toggle('wrap'); }
+      function toggleFull(){ if(!document.fullscreenElement) viewer.requestFullscreen(); else document.exitFullscreen(); }
+      function copyCode(){ if(currentIdx!=null){ navigator.clipboard.writeText(q.options[currentIdx].code||''); showToast('Copied'); } }
+      copyBtn.addEventListener('click', copyCode);
+      wrapBtn.addEventListener('click', toggleWrap);
+      fullBtn.addEventListener('click', toggleFull);
+      if(window.innerWidth<768) viewer.classList.add('wrap');
+      layout.append(list, viewer);
+      fs.appendChild(layout);
+      let initial=0; const prev=state.answers[q._id]; if(prev!==undefined){ initial=Array.isArray(prev)?prev[0]:prev; }
+      showCode(initial);
+      state.viewer={toggleWrap, toggleFull};
     } else {
       q.options.forEach((o, idx)=>{
-        const label=document.createElement('label'); label.className='option-card';
+        const label=document.createElement('label'); label.className='option-card'; label.tabIndex=0; label.dataset.index=idx; label.setAttribute('role','option');
         const inp=document.createElement('input');
         inp.type=q.type==='multiple'?'checkbox':'radio';
         inp.name='opt'; inp.value=idx;
@@ -214,8 +246,10 @@ function renderQuestion(){
         label.appendChild(inp);
         const span=document.createElement('span'); span.textContent=o.text||'';
         label.appendChild(span);
+        label.addEventListener('click', e=>{ if(e.target!==inp){ inp.checked=q.type==='multiple'? !inp.checked : true; inp.dispatchEvent(new Event('change',{bubbles:true})); } });
         fs.appendChild(label);
       });
+      state.viewer=null;
     }
     els.form.appendChild(fs);
     els.form.classList.add('fade');
@@ -318,18 +352,22 @@ els.start.addEventListener('click', startTimer);
 els.pause.addEventListener('click', pauseTimer);
 els.end.addEventListener('click', endTimer);
 
-function handleKey(e){
-  if (e.target.tagName === 'INPUT' || !state.data) return;
-  const q = state.data.questions[state.currentIndex];
-  const opts = Array.from(els.form.querySelectorAll('input[name="opt"]'));
-  if (e.key === 'ArrowDown'){ e.preventDefault(); const i = (opts.indexOf(document.activeElement)+1)%opts.length; opts[i].focus(); }
-  else if (e.key === 'ArrowUp'){ e.preventDefault(); const i = (opts.indexOf(document.activeElement)-1+opts.length)%opts.length; opts[i].focus(); }
-  else if (/^[1-9]$/.test(e.key)){ const idx = parseInt(e.key,10)-1; if (opts[idx]) { if(q.type==='multiple') opts[idx].checked = !opts[idx].checked; else opts[idx].checked = true; opts[idx].dispatchEvent(new Event('change',{bubbles:true})); } }
-  else if (e.key.toLowerCase()==='m'){ els.mark.click(); }
-  else if (e.key.toLowerCase()==='n'){ els.saveNext.click(); }
-  else if (e.key.toLowerCase()==='b'){ els.back.click(); }
-  else if (e.key === '?'){ e.preventDefault(); els.help.classList.remove('hidden'); }
-}
+  function handleKey(e){
+    if (!state.data) return;
+    const q = state.data.questions[state.currentIndex];
+    const opts = Array.from(els.form.querySelectorAll('.option-preview, .option-card'));
+    if (e.key === 'ArrowDown'){ e.preventDefault(); const i = (opts.indexOf(document.activeElement)+1)%opts.length; opts[i].focus(); }
+    else if (e.key === 'ArrowUp'){ e.preventDefault(); const i = (opts.indexOf(document.activeElement)-1+opts.length)%opts.length; opts[i].focus(); }
+    else if (/^[1-9]$/.test(e.key)){ const idx=parseInt(e.key,10)-1; const opt=opts[idx]; if(opt){ const inp=opt.querySelector('input'); if(inp){ if(q.type==='multiple') inp.checked=!inp.checked; else inp.checked=true; inp.dispatchEvent(new Event('change',{bubbles:true})); opt.focus(); } } }
+    else if (e.key === 'Enter'){ const opt=document.activeElement.closest('.option-preview, .option-card'); if(opt){ const inp=opt.querySelector('input'); if(inp){ if(q.type==='multiple') inp.checked=!inp.checked; else inp.checked=true; inp.dispatchEvent(new Event('change',{bubbles:true})); } } }
+    else if (e.key === ' '){ const opt=document.activeElement.closest('.option-preview'); if(opt){ e.preventDefault(); opt.classList.toggle('expanded'); } }
+    else if (e.key.toLowerCase()==='f' && state.viewer){ e.preventDefault(); state.viewer.toggleFull(); }
+    else if (e.key.toLowerCase()==='w' && state.viewer){ e.preventDefault(); state.viewer.toggleWrap(); }
+    else if (e.key.toLowerCase()==='m'){ els.mark.click(); }
+    else if (e.key.toLowerCase()==='n'){ els.saveNext.click(); }
+    else if (e.key.toLowerCase()==='b'){ els.back.click(); }
+    else if (e.key === '?'){ e.preventDefault(); els.help.classList.remove('hidden'); }
+  }
 
 document.addEventListener('keydown', handleKey);
 els.toggleSidebar.addEventListener('click', ()=>{ document.body.classList.toggle('sidebar-hidden'); });
