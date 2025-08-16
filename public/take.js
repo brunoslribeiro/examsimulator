@@ -170,20 +170,56 @@ function renderQuestion(){
     const fs = document.createElement('fieldset');
     const legend = document.createElement('legend'); legend.textContent = q.text || '';
     fs.appendChild(legend);
-    q.options.forEach((o, idx)=>{
-      const label = document.createElement('label'); label.className='option-card';
-      const inp = document.createElement('input');
-      inp.type = q.type==='multiple' ? 'checkbox' : 'radio';
-      inp.name='opt'; inp.value=idx;
-      const ans = state.answers[q._id];
-      if(Array.isArray(ans) ? ans.includes(idx) : ans===idx) inp.checked = true;
-      label.appendChild(inp);
-      const span = document.createElement('span'); span.textContent = o.text || '';
-      label.appendChild(span);
-      fs.appendChild(label);
-    });
+    const hasCode = q.options.some(o=>o.code);
+    if(hasCode){
+      const wrapper=document.createElement('div'); wrapper.className='code-carousel';
+      const prev=document.createElement('button'); prev.type='button'; prev.textContent='◀';
+      const next=document.createElement('button'); next.type='button'; next.textContent='▶';
+      const view=document.createElement('div'); view.className='view';
+      const track=document.createElement('div'); track.className='track';
+      q.options.forEach((o,idx)=>{
+        const slide=document.createElement('div'); slide.className='slide';
+        const label=document.createElement('label'); label.className='option-card';
+        const inp=document.createElement('input');
+        inp.type=q.type==='multiple'?'checkbox':'radio';
+        inp.name='opt'; inp.value=idx;
+        const ans=state.answers[q._id];
+        if(Array.isArray(ans)?ans.includes(idx):ans===idx) inp.checked=true;
+        label.appendChild(inp);
+        const pre=document.createElement('pre');
+        const code=document.createElement('code');
+        code.textContent=o.code||'';
+        if(o.language) code.classList.add('language-'+o.language);
+        pre.appendChild(code);
+        label.appendChild(pre);
+        slide.appendChild(label);
+        track.appendChild(slide);
+      });
+      view.appendChild(track);
+      wrapper.append(prev, view, next);
+      fs.appendChild(wrapper);
+      let cIndex=0;
+      function update(){ track.style.transform=`translateX(-${cIndex*100}%)`; }
+      prev.onclick=()=>{ cIndex=(cIndex-1+q.options.length)%q.options.length; update(); };
+      next.onclick=()=>{ cIndex=(cIndex+1)%q.options.length; update(); };
+      update();
+    } else {
+      q.options.forEach((o, idx)=>{
+        const label=document.createElement('label'); label.className='option-card';
+        const inp=document.createElement('input');
+        inp.type=q.type==='multiple'?'checkbox':'radio';
+        inp.name='opt'; inp.value=idx;
+        const ans=state.answers[q._id];
+        if(Array.isArray(ans)?ans.includes(idx):ans===idx) inp.checked=true;
+        label.appendChild(inp);
+        const span=document.createElement('span'); span.textContent=o.text||'';
+        label.appendChild(span);
+        fs.appendChild(label);
+      });
+    }
     els.form.appendChild(fs);
     els.form.classList.add('fade');
+    if(window.hljs) hljs.highlightAll();
     if(state.mode==='practice' && shouldCheck(q)) showCorrectness(q);
     updateSidebar(); updateProgress();
     setTimeout(()=>els.form.classList.remove('fade'),300);

@@ -117,6 +117,20 @@ function closeModal(){
 function addOptRow(data={}){
   const div=$('<div class="opt row"></div>');
   div.append(`<input class="t" placeholder="Opção" value="${data.text||''}"/>`);
+  div.append(`<textarea class="code" placeholder="Código">${data.code||''}</textarea>`);
+  const lang=$('<select class="lang"></select>').append(`
+    <option value="">Linguagem</option>
+    <option value="javascript">JavaScript</option>
+    <option value="python">Python</option>
+    <option value="java">Java</option>
+    <option value="c">C</option>
+    <option value="cpp">C++</option>
+    <option value="csharp">C#</option>
+    <option value="php">PHP</option>
+    <option value="ruby">Ruby</option>
+    <option value="go">Go</option>`);
+  lang.val(data.language||'');
+  div.append(lang);
   const file=$('<input type="file" class="f" accept="image/*" />');
   div.append(file);
   const chk=$(`<label>Correta? <input type="checkbox" class="c" ${data.isCorrect?'checked':''}/></label>`);
@@ -133,7 +147,13 @@ function addOptRow(data={}){
 function gatherForm(){
   const options=[];
   $('#opts .opt').each(function(){
-    options.push({ text:$(this).find('.t').val().trim(), imagePath:$(this).find('.f').data('imagePath')||'', isCorrect:$(this).find('.c').prop('checked') });
+    options.push({
+      text:$(this).find('.t').val().trim(),
+      code:$(this).find('.code').val(),
+      language:$(this).find('.lang').val(),
+      imagePath:$(this).find('.f').data('imagePath')||'',
+      isCorrect:$(this).find('.c').prop('checked')
+    });
   });
   return { _id:$('#qid').val(), text:$('#qtext').val().trim(), topic:$('#qtopic').val().trim(), status:$('#qstatus').val(), type:$('#qtype').val(), imagePath:$('#qimg').data('imagePath')||'', options };
 }

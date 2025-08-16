@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const OptionSchema = new mongoose.Schema({
   text: { type: String, default: '' },
   imagePath: { type: String, default: '' }, // e.g., '/uploads/xyz.png'
+  code: { type: String, default: '' },
+  language: { type: String, default: '' },
   isCorrect: { type: Boolean, default: false }
 }, { _id: false });
 
