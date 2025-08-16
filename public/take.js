@@ -295,6 +295,8 @@ els.settingsForm.addEventListener('submit', e=>{
   };
   state.settings = s;
   state.mode = s.mode;
+  els.pauseOverlay.style.display = 'none';  
+  startTimer();
   localStorage.setItem(settingsKey, JSON.stringify(s));
   els.settingsModal.classList.add('hidden');
   if(s.hideSidebar) document.body.classList.add('sidebar-hidden'); else document.body.classList.remove('sidebar-hidden');
