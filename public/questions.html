@@ -6,64 +6,95 @@
   <title>Questões</title>
   <script src="theme-init.js"></script>
   <link rel="stylesheet" href="styles.css" />
+  <style>
+    .q-admin{display:flex;height:calc(100vh - 60px);}
+    .filters{width:220px;flex-shrink:0;border-right:1px solid var(--border);padding:12px;display:grid;gap:8px;}
+    .filters label{display:block;}
+    .filters input,.filters select{width:100%;min-height:36px;padding:6px;border:1px solid var(--border);background:var(--card);color:inherit;}
+    .filters input{min-width:200px;}
+    .list-area{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+    .search-bar{position:sticky;top:0;z-index:10;background:var(--card);padding:8px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;}
+    .search-bar input,.search-bar button{min-height:36px;padding:6px;}
+    #list{flex:1;overflow-y:scroll;scrollbar-gutter:stable;padding:8px;}
+    .q-row{padding:12px;border-bottom:1px solid var(--border);position:relative;}
+    .q-row .meta{font-size:12px;color:var(--muted);}
+    .overflow{position:absolute;right:8px;top:8px;background:none;border:none;color:inherit;cursor:pointer;width:44px;height:44px;}
+    .row-menu{position:absolute;right:8px;top:32px;background:var(--card);border:1px solid var(--border);display:none;flex-direction:column;z-index:20;}
+    .row-menu button{display:block;padding:8px;background:none;border:none;text-align:left;width:100%;cursor:pointer;}
+    .skeleton{height:40px;background:var(--border);margin-bottom:8px;animation:pulse 1s infinite;}
+    @keyframes pulse{0%{opacity:.5}50%{opacity:.2}100%{opacity:.5}}
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;}
+    .modal.open{display:flex;}
+    .modal-content{background:var(--card);padding:20px;max-height:90vh;overflow:auto;width:600px;max-width:95%;border-radius:4px;}
+    .modal-content label{display:block;margin-bottom:8px;}
+    .modal-content img.preview{max-width:100px;display:block;margin-top:4px;}
+    body.modal-open{overflow:hidden;}
+    .counter{font-size:12px;margin-left:4px;color:var(--muted);}
+    .empty,.error{text-align:center;color:var(--muted);margin-top:20px;}
+    :focus{outline:2px solid var(--accent);outline-offset:2px;}
+  </style>
 </head>
 <body>
   <header id="app-header"></header>
-  <div class="container">
-    <div class="breadcrumb">Administração &rsaquo; Provas &rsaquo; <span id="crumbExam">...</span> &rsaquo; Questões</div>
-    <h1>Questões</h1>
-    <div class="card">
-      <h2>Nova / Editar questão</h2>
+  <div class="q-admin">
+    <aside class="filters">
+      <label>Tópico <input id="fTopic" aria-label="Filtrar por tópico" /></label>
+      <label>Status
+        <select id="fStatus" aria-label="Filtrar por status">
+          <option value="">Todos</option>
+          <option value="draft">Rascunho</option>
+          <option value="published">Publicado</option>
+        </select>
+      </label>
+      <label>Imagem?
+        <select id="fImage" aria-label="Filtrar por imagem">
+          <option value="">Todas</option>
+          <option value="1">Com</option>
+          <option value="0">Sem</option>
+        </select>
+      </label>
+      <label>Desde <input type="date" id="fSince" aria-label="Filtrar por data" /></label>
+      <label>Ordenar
+        <select id="fSort" aria-label="Ordenar">
+          <option value="recent">Recentes</option>
+          <option value="az">A–Z</option>
+        </select>
+      </label>
+    </aside>
+    <main class="list-area">
+      <div class="search-bar">
+        <input type="text" id="search" placeholder="Pesquisar" aria-label="Pesquisar" />
+        <button id="newBtn" type="button">Nova questão</button>
+      </div>
+      <div id="list"></div>
+      <div id="pagination" class="search-bar" style="justify-content:center;"></div>
+    </main>
+  </div>
+
+  <div id="editorModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-content">
       <form id="qForm">
         <input type="hidden" id="qid" />
-        <label>Enunciado <textarea id="qtext" required></textarea></label>
-        <label>Tipo
-          <select id="qtype">
-            <option value="single">Única escolha</option>
-            <option value="multiple">Múltipla escolha</option>
-          </select>
-        </label>
+        <label>Enunciado <textarea id="qtext" required></textarea><span id="qtextCount" class="counter"></span></label>
+        <label>Tópico <input id="qtopic" /></label>
+        <label>Status <select id="qstatus"><option value="draft">Rascunho</option><option value="published">Publicado</option></select></label>
+        <label>Tipo <select id="qtype"><option value="single">Única escolha</option><option value="multiple">Múltipla escolha</option></select></label>
+        <label>Imagem <input type="file" id="qimg" accept="image/*" /> <button type="button" id="removeImg" class="danger">Remover</button></label>
+        <img id="qimgPreview" class="preview" style="display:none" />
         <div id="opts"></div>
+        <div class="row"><button type="button" id="addOpt" class="secondary">➕ Opção</button></div>
         <div class="row">
-          <button type="button" id="addOpt" class="success">➕ Opção</button>
-          <button type="submit">💾 Salvar questão</button>
-          <button type="button" id="cancel" class="danger">✖️ Cancelar edição</button>
+          <button type="submit" id="save">Salvar</button>
+          <button type="button" id="saveNew" class="success">Salvar & Novo</button>
+          <button type="button" id="cancel" class="danger">Cancelar</button>
         </div>
       </form>
     </div>
-
-      <div class="card">
-        <h2>Questões cadastradas</h2>
-        <div class="row between">
-          <div id="qCount"></div>
-          <div class="row" style="gap:6px">
-            <label>Por página
-              <select id="perPage">
-                <option value="5">5</option>
-                <option value="10" selected>10</option>
-                <option value="20">20</option>
-              </select>
-            </label>
-            <input type="text" id="search" placeholder="Pesquisar enunciado" />
-          </div>
-        </div>
-        <div id="list"></div>
-        <div id="pagination" class="row" style="justify-content:center;margin-top:12px"></div>
-      </div>
-
-    <div class="card">
-      <h2>Substituir termos</h2>
-      <div class="row" style="gap:6px">
-        <input type="text" id="findTerm" placeholder="Buscar" />
-        <input type="text" id="replaceTerm" placeholder="Substituir por" />
-        <button type="button" id="previewReplace" class="secondary">Pré-visualizar</button>
-        <button type="button" id="applyReplace" class="danger" style="display:none">Confirmar</button>
-      </div>
-      <div id="replacePreview" class="muted" style="margin-top:8px"></div>
-    </div>
   </div>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="common.js"></script>
-    <script src="questions.js"></script>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="common.js"></script>
+  <script src="questions-utils.js"></script>
+  <script src="questions.js"></script>
 </body>
 </html>
