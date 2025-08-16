@@ -4,7 +4,7 @@ let editingId = null;
 const titleInput = document.getElementById('title');
 const descInput = document.getElementById('description');
 const saveBtn = document.getElementById('saveExam');
-const cancelBtn = document.getElementById('cancelExam');
+const cancelBtn = document.getElementById('cancelEdit');
 const modal = document.getElementById('exam-modal');
 const openBtn = document.getElementById('openExam');
 
@@ -28,8 +28,13 @@ function startEdit(exam){
   modal.classList.remove('hidden');
 }
 
-openBtn.onclick = () => { resetForm(); modal.classList.remove('hidden'); };
-cancelBtn.onclick = resetForm;
+openBtn.onclick = () => { 
+  resetForm(); modal.classList.remove('hidden'); 
+};
+
+cancelBtn.onclick = () => {
+  resetForm();
+};
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
