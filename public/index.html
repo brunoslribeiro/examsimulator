@@ -3,37 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Provas</title>
+  <title>Início</title>
   <script src="theme-init.js"></script>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header id="app-header"></header>
   <div class="container">
-    <h1>Provas</h1>
-
-    <button type="button" id="openExam" class="success">➕ Criar prova</button>
-
-    <div id="exam-modal" class="modal hidden">
-      <form id="examForm" class="modal-content">
-        <h2>Nova / Editar prova</h2>
-        <input type="hidden" id="examId" />
-        <label>Título <input id="title" required /></label>
-        <label>Descrição <textarea id="description"></textarea></label>
-        <div class="row">
-          <button type="submit" id="saveExam">💾 Salvar</button>
-          <button type="button" id="cancelEdit" class="secondary">✖️ Cancelar edição</button>
-        </div>
-      </form>
-    </div>
-
+    <h1>Bem-vindo ao Simulador de Provas</h1>
+    <p>Use as opções abaixo para começar.</p>
     <div class="card">
-      <h2>Lista de provas</h2>
-      <div id="exams" class="list"></div>
+      <h2>Tutorial rápido</h2>
+      <ol>
+        <li><strong>Criar uma prova:</strong> acesse a página <a href="/admin.html">Administração</a> e clique em "Criar prova".</li>
+        <li><strong>Executar uma prova:</strong> na lista de provas, clique em "Aplicar prova".</li>
+        <li><strong>Importar via JSON:</strong> vá para <a href="/import.html">Importar JSON</a> e envie um arquivo.</li>
+        <li><strong>Importar via PDF:</strong> vá para <a href="/import-pdf.html">Importar PDF</a> e selecione o documento.</li>
+      </ol>
     </div>
   </div>
-  <div class="toast" style="display:block;opacity:0"></div>
   <script src="common.js"></script>
-  <script src="index.js"></script>
 </body>
 </html>
+
