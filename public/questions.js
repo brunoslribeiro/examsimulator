@@ -150,8 +150,8 @@ function resetForm(){
 async function saveQuestion(andNew){
   if(!document.getElementById('qForm').checkValidity()){ document.getElementById('qForm').reportValidity(); return; }
   const data=gatherForm();
-  const val=validateQuestion(data);
-  if(!val.ok){ alert('Preencha corretamente'); return; }
+  //const val=validateQuestion(data);
+  //if(!val.ok){ alert('Preencha corretamente'); return; }
   const method=data._id?'PUT':'POST';
   const url=data._id?'/api/questions/'+data._id:'/api/questions';
   const payload={ examId, text:data.text, topic:data.topic, status:data.status, type:data.type, options:data.options, imagePath:data.imagePath };
