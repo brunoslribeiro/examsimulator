@@ -212,10 +212,10 @@ img.preview{max-height:72px; display:block; margin-top:8px; border-radius:10px; 
 
 .opt textarea.code{width:100%;min-height:90px;margin-top:8px;}
 .opt select.lang{margin-top:8px;}
-.code-carousel{display:flex;align-items:center;gap:8px;}
-.code-carousel .view{overflow:hidden;flex:1;}
+.code-carousel{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 auto;}
+.code-carousel .view{overflow:hidden;flex:1 1 auto;}
 .code-carousel .track{display:flex;transition:transform .3s;}
 .code-carousel .slide{flex:0 0 100%;}
-.code-carousel .option-card{flex-direction:column;align-items:flex-start;}
+.code-carousel .option-card{flex-direction:column;align-items:center;}
 .code-carousel pre{margin:0;width:100%;overflow:auto;}
 .code-carousel button{background:var(--accent);color:#fff;border:none;padding:6px 10px;}
