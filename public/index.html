@@ -12,9 +12,11 @@
   <div class="container">
     <h1>Provas</h1>
 
-    <div class="card">
-      <h2>Nova / Editar prova</h2>
-      <form id="examForm">
+    <button type="button" id="openExam" class="success">➕ Criar prova</button>
+
+    <div id="exam-modal" class="modal hidden">
+      <form id="examForm" class="modal-content">
+        <h2>Nova / Editar prova</h2>
         <input type="hidden" id="examId" />
         <label>Título <input id="title" required /></label>
         <label>Descrição <textarea id="description"></textarea></label>
