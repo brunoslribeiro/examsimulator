@@ -208,7 +208,7 @@ app.post('/api/questions', async (req, res) => {
 
 app.get('/api/questions', async (req, res) => {
   const { examId, q, topic, status, hasImage, since, sort = 'recent', page = 1 } = req.query;
-  const query = { deleted: false };
+  const query = { deleted: { $ne: true } };
   if (examId) query.examId = examId;
   if (topic) query.topic = new RegExp(topic, 'i');
   if (status) query.status = status;
