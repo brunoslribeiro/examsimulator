@@ -204,9 +204,9 @@ function renderQuestion(){
         const ans=state.answers[q._id];
         if(Array.isArray(ans)?ans.includes(idx):ans===idx) inp.checked=true;
         label.appendChild(inp);
-        const preview=document.createElement('pre'); preview.className='code-preview'; preview.textContent=(o.code||'').split('\n').slice(0,5).join('\n');
-        label.appendChild(preview);
-        const chev=document.createElement('span'); chev.className='chevron'; chev.textContent='▸'; label.appendChild(chev);
+        //const preview=document.createElement('pre'); preview.className='code-preview'; preview.textContent=(o.code||'').split('\n').slice(0,5).join('\n');
+        //label.appendChild(preview);
+        //const chev=document.createElement('span'); chev.className='chevron'; chev.textContent='▸'; label.appendChild(chev);
         label.addEventListener('click', e=>{ if(e.target!==inp){ inp.checked=q.type==='multiple'? !inp.checked : true; inp.dispatchEvent(new Event('change',{bubbles:true})); } showCode(idx); if(window.innerWidth<768) viewer.requestFullscreen(); });
         label.addEventListener('keydown', e=>{ if(e.key===' '){ e.preventDefault(); label.classList.toggle('expanded'); } });
         inp.addEventListener('change', ()=>{ showCode(idx); });
