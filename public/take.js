@@ -106,12 +106,13 @@ function buildSidebar(){
 function updateSidebar(){
   Array.from(els.qnums.children).forEach((el, idx)=>{
     const q = state.data.questions[idx];
-    const ansIdx = state.answers[q._id];
-    el.classList.toggle('answered', ansIdx !== undefined);
+    const ans = state.answers[q._id];
+    const answered = Array.isArray(ans) ? ans.length>0 : ans !== undefined;
+    el.classList.toggle('answered', answered);
     el.classList.toggle('flagged', state.flagged.has(q._id));
     el.classList.toggle('current', idx === state.currentIndex);
-    if(state.mode==='practice' && ansIdx !== undefined){
-      const correct = q.options[ansIdx] && q.options[ansIdx].isCorrect;
+    if(state.mode==='practice' && answered){
+      const correct = isAnswerCorrect(q, ans);
       el.classList.toggle('correct', correct);
       el.classList.toggle('wrong', !correct);
     } else {
@@ -134,11 +135,31 @@ function showCorrectness(q){
     const opt = q.options[idx];
     label.classList.remove('correct','wrong');
     if(opt.isCorrect) label.classList.add('correct');
-    if(ans===idx && !opt.isCorrect) label.classList.add('wrong');
+    const chosen = Array.isArray(ans) ? ans.includes(idx) : ans === idx;
+    if(chosen && !opt.isCorrect) label.classList.add('wrong');
   });
   let exp = els.form.querySelector('.explain');
   if(!exp){ exp = document.createElement('div'); exp.className='explain'; els.form.appendChild(exp); }
   exp.textContent = 'Explanation placeholder';
+}
+
+function shouldCheck(q){
+  const ans = state.answers[q._id];
+  if(q.type==='multiple'){
+    if(!Array.isArray(ans)) return false;
+    const needed = q.options.filter(o=>o.isCorrect).length;
+    return ans.length >= needed;
+  }
+  return ans !== undefined;
+}
+
+function isAnswerCorrect(q, ans){
+  if(q.type==='multiple'){
+    if(!Array.isArray(ans)) return false;
+    const correctIdx = q.options.map((o,i)=>o.isCorrect?i:null).filter(i=>i!==null);
+    return ans.length===correctIdx.length && ans.every(i=>correctIdx.includes(i));
+  }
+  return q.options[ans] && q.options[ans].isCorrect;
 }
 
 function renderQuestion(){
@@ -151,8 +172,11 @@ function renderQuestion(){
     fs.appendChild(legend);
     q.options.forEach((o, idx)=>{
       const label = document.createElement('label'); label.className='option-card';
-      const inp = document.createElement('input'); inp.type='radio'; inp.name='opt'; inp.value=idx;
-      if (state.answers[q._id] === idx) inp.checked = true;
+      const inp = document.createElement('input');
+      inp.type = q.type==='multiple' ? 'checkbox' : 'radio';
+      inp.name='opt'; inp.value=idx;
+      const ans = state.answers[q._id];
+      if(Array.isArray(ans) ? ans.includes(idx) : ans===idx) inp.checked = true;
       label.appendChild(inp);
       const span = document.createElement('span'); span.textContent = o.text || '';
       label.appendChild(span);
@@ -160,7 +184,7 @@ function renderQuestion(){
     });
     els.form.appendChild(fs);
     els.form.classList.add('fade');
-    if(state.mode==='practice' && state.answers[q._id] !== undefined) showCorrectness(q);
+    if(state.mode==='practice' && shouldCheck(q)) showCorrectness(q);
     updateSidebar(); updateProgress();
     setTimeout(()=>els.form.classList.remove('fade'),300);
   },300);
@@ -168,18 +192,25 @@ function renderQuestion(){
 
 function saveCurrent(){
   const q = state.data.questions[state.currentIndex];
-  const checked = els.form.querySelector('input[name="opt"]:checked');
-  if (checked) state.answers[q._id] = parseInt(checked.value,10); else delete state.answers[q._id];
+  const checked = Array.from(els.form.querySelectorAll('input[name="opt"]:checked'));
+  if(q.type==='multiple'){
+    const vals = checked.map(c=>parseInt(c.value,10));
+    if(vals.length) state.answers[q._id]=vals; else delete state.answers[q._id];
+  } else {
+    const c = checked[0];
+    if(c) state.answers[q._id]=parseInt(c.value,10); else delete state.answers[q._id];
+  }
   localStorage.setItem(answersKey, JSON.stringify(state.answers));
   localStorage.setItem(idxKey, state.currentIndex);
   updateSidebar(); updateProgress();
-  if(state.mode==='practice' && checked) showCorrectness(q);
+  if(state.mode==='practice' && shouldCheck(q)) showCorrectness(q);
 }
 
 function filterQnums(type){
   Array.from(els.qnums.children).forEach((el, idx)=>{
     const q = state.data.questions[idx];
-    const answered = state.answers[q._id] !== undefined;
+    const ans = state.answers[q._id];
+    const answered = Array.isArray(ans) ? ans.length>0 : ans !== undefined;
     const flagged = state.flagged.has(q._id);
     let show = true;
     if (type==='blank') show = !answered;
@@ -231,7 +262,7 @@ els.submit.addEventListener('click', async ()=>{
     state.data.questions.forEach(q=>{
       const ans = state.answers[q._id];
       if(ans!==undefined){
-        if(q.options[ans] && q.options[ans].isCorrect) correct++; else wrong++;
+        if(isAnswerCorrect(q, ans)) correct++; else wrong++;
       }
     });
   }
@@ -239,7 +270,7 @@ els.submit.addEventListener('click', async ()=>{
   if(state.mode==='practice') msg += `\nCorrect: ${correct}\nWrong: ${wrong}`;
   if (!confirm(msg)) return;
   if(state.mode==='exam'){
-    const payload = Object.entries(state.answers).map(([id, idx])=>({questionId:id, selectedIndices: idx!=null?[idx]:[]}));
+    const payload = Object.entries(state.answers).map(([id, idx])=>({questionId:id, selectedIndices: Array.isArray(idx)?idx:(idx!=null?[idx]:[])}));
     const res = await api('/api/attempts', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({examId, answers:payload})});
     els.result.innerHTML = '<div class="card">'+(res.error || `Score: ${res.score.correct}/${res.score.total}`)+'</div>';
   } else {
@@ -257,7 +288,7 @@ function handleKey(e){
   const opts = Array.from(els.form.querySelectorAll('input[name="opt"]'));
   if (e.key === 'ArrowDown'){ e.preventDefault(); const i = (opts.indexOf(document.activeElement)+1)%opts.length; opts[i].focus(); }
   else if (e.key === 'ArrowUp'){ e.preventDefault(); const i = (opts.indexOf(document.activeElement)-1+opts.length)%opts.length; opts[i].focus(); }
-  else if (/^[1-9]$/.test(e.key)){ const idx = parseInt(e.key,10)-1; if (opts[idx]) { opts[idx].checked = true; opts[idx].dispatchEvent(new Event('change',{bubbles:true})); } }
+  else if (/^[1-9]$/.test(e.key)){ const idx = parseInt(e.key,10)-1; if (opts[idx]) { if(q.type==='multiple') opts[idx].checked = !opts[idx].checked; else opts[idx].checked = true; opts[idx].dispatchEvent(new Event('change',{bubbles:true})); } }
   else if (e.key.toLowerCase()==='m'){ els.mark.click(); }
   else if (e.key.toLowerCase()==='n'){ els.saveNext.click(); }
   else if (e.key.toLowerCase()==='b'){ els.back.click(); }
