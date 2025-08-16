@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz</title>
+<style>
+:root{
+  --bg:#0b1220;
+  --card:#0f172a;
+  --text:#e6eaf2;
+  --accent:#6aa0ff;
+  --accent-hover:#88b6ff;
+  --border:#223154;
+  --space-8:8px;
+  --space-12:12px;
+  --space-16:16px;
+  --space-24:24px;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,sans-serif;}
+button{cursor:pointer;border:none;border-radius:12px;padding:var(--space-12) var(--space-16);background:var(--accent);color:#fff;font-weight:600;}
+button:hover{background:var(--accent-hover);}
+header{display:flex;align-items:center;justify-content:space-between;padding:var(--space-16);max-width:960px;margin:auto;}
+main{max-width:960px;margin:auto;padding:var(--space-16);display:grid;gap:var(--space-24);}
+.question{display:grid;gap:var(--space-16);animation:fade .25s ease;}
+.options{display:grid;gap:var(--space-12);}
+.option{display:flex;align-items:flex-start;gap:var(--space-12);padding:var(--space-12);border:1px solid var(--border);border-radius:12px;background:var(--card);cursor:pointer;}
+.option:hover,.option:focus-within{border-color:var(--accent);}
+.option.selected{border-color:var(--accent);background:rgba(106,160,255,.1);}
+.option input{margin-top:4px;}
+.code-block{background:#1b243a;border:1px solid var(--border);border-radius:12px;padding:var(--space-16);overflow:auto;font-family:monospace;white-space:pre-wrap;}
+footer{position:fixed;bottom:0;left:0;right:0;background:var(--card);padding:var(--space-12);display:flex;gap:var(--space-12);justify-content:flex-end;border-top:1px solid var(--border);}
+/* drawer */
+.drawer{position:fixed;top:0;left:0;height:100%;width:320px;background:var(--card);transform:translateX(-100%);transition:transform .25s ease-in-out;box-shadow:2px 0 8px rgba(0,0,0,.4);display:flex;flex-direction:column;padding:var(--space-16);gap:var(--space-12);}
+.drawer.open{transform:none;}
+.drawer-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .25s ease-in-out;}
+.drawer-backdrop.show{opacity:1;pointer-events:auto;}
+.qnav{display:grid;grid-template-columns:repeat(auto-fill,40px);gap:var(--space-8);}
+.qchip{width:40px;height:40px;border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;background:var(--card);color:var(--text);}
+.qchip.answered{background:var(--accent);color:#fff;}
+.qchip.flagged{border-style:dashed;}
+@keyframes fade{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+</style>
+</head>
+<body>
+<header>
+  <button id="menu" aria-label="Open navigation" aria-expanded="false">☰</button>
+  <h1 id="title">Sample Quiz</h1>
+  <div id="timer" role="timer">00:00</div>
+</header>
+
+<aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <h2 id="drawer-title">Questions</h2>
+    <button id="close">✕</button>
+  </div>
+  <div id="qnav" class="qnav"></div>
+</aside>
+<div id="backdrop" class="drawer-backdrop"></div>
+
+<main>
+  <section id="question" class="question">
+    <div class="stem">What does the following code output?</div>
+    <pre class="code-block"><code class="language-js">console.log('Hello world');
+</code></pre>
+    <div class="options">
+      <label class="option"><input type="radio" name="opt" value="a"><span>Hello world</span></label>
+      <label class="option"><input type="radio" name="opt" value="b"><span>Goodbye</span></label>
+      <label class="option"><input type="radio" name="opt" value="c"><span>Error</span></label>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <button id="back">Back</button>
+  <button id="save">Save &amp; Next</button>
+  <button id="flag">Mark for review</button>
+  <button id="submit">Submit</button>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+const state={index:0,answers:{},flagged:new Set()};
+const drawer=document.getElementById('drawer');
+const backdrop=document.getElementById('backdrop');
+const menu=document.getElementById('menu');
+const closeBtn=document.getElementById('close');
+menu.addEventListener('click',openDrawer);
+closeBtn.addEventListener('click',closeDrawer);
+backdrop.addEventListener('click',closeDrawer);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&drawer.classList.contains('open'))closeDrawer();});
+function openDrawer(){drawer.classList.add('open');backdrop.classList.add('show');menu.setAttribute('aria-expanded','true');trap();}
+function closeDrawer(){drawer.classList.remove('open');backdrop.classList.remove('show');menu.setAttribute('aria-expanded','false');release();}
+/* focus trap */
+let focusable;function trap(){focusable=drawer.querySelectorAll('button,.qchip');focusable[0]?.focus();document.addEventListener('keydown',trapTab);}
+function release(){document.removeEventListener('keydown',trapTab);}
+function trapTab(e){if(e.key!=='Tab')return;const first=focusable[0];const last=focusable[focusable.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}
+/* nav chips */
+const qnav=document.getElementById('qnav');
+for(let i=1;i<=5;i++){const b=document.createElement('button');b.className='qchip';b.textContent=i;b.addEventListener('click',()=>{state.index=i-1;});qnav.appendChild(b);}
+/* option selection */
+document.querySelectorAll('.option input').forEach(inp=>{
+  inp.addEventListener('change',e=>{
+    state.answers[state.index]=e.target.value;
+    document.querySelectorAll('.option').forEach(o=>o.classList.toggle('selected',o.contains(e.target)));
+  });
+});
+document.getElementById('flag').addEventListener('click',()=>{
+  if(state.flagged.has(state.index)){state.flagged.delete(state.index);}else{state.flagged.add(state.index);}updateChips();});
+function updateChips(){qnav.childNodes.forEach((b,i)=>{b.classList.toggle('answered',state.answers[i]!=null);b.classList.toggle('flagged',state.flagged.has(i));});}
+</script>
+</body>
+</html>
