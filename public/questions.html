@@ -8,15 +8,18 @@
   <link rel="stylesheet" href="styles.css" />
   <style>
     .q-admin{display:flex;min-height:calc(100vh - 60px);}
-    .filters{width:220px;border-right:1px solid var(--border);padding:12px;}
-    .filters label{display:block;margin-bottom:8px;}
-    .list-area{flex:1;display:flex;flex-direction:column;}
+    .filters{width:220px;border-right:1px solid var(--border);padding:12px;display:grid;gap:8px;}
+    .filters label{display:block;}
+    .filters input,.filters select{width:100%;min-height:36px;padding:6px;border:1px solid var(--border);background:var(--card);color:inherit;}
+    .filters input{min-width:200px;}
+    .list-area{flex:1;display:flex;flex-direction:column;overflow:hidden;}
     .search-bar{position:sticky;top:0;z-index:10;background:var(--card);padding:8px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;}
+    .search-bar input,.search-bar button{min-height:36px;padding:6px;}
     #list{flex:1;overflow:auto;padding:8px;}
     .q-row{padding:12px;border-bottom:1px solid var(--border);position:relative;}
     .q-row .meta{font-size:12px;color:var(--muted);}
     .overflow{position:absolute;right:8px;top:8px;background:none;border:none;color:inherit;cursor:pointer;width:44px;height:44px;}
-    .row-menu{position:absolute;right:8px;top:32px;background:var(--card);border:1px solid var(--border);display:none;flex-direction:column;}
+    .row-menu{position:absolute;right:8px;top:32px;background:var(--card);border:1px solid var(--border);display:none;flex-direction:column;z-index:20;}
     .row-menu button{display:block;padding:8px;background:none;border:none;text-align:left;width:100%;cursor:pointer;}
     .skeleton{height:40px;background:var(--border);margin-bottom:8px;animation:pulse 1s infinite;}
     @keyframes pulse{0%{opacity:.5}50%{opacity:.2}100%{opacity:.5}}
@@ -27,39 +30,41 @@
     .modal-content img.preview{max-width:100px;display:block;margin-top:4px;}
     body.modal-open{overflow:hidden;}
     .counter{font-size:12px;margin-left:4px;color:var(--muted);}
+    .empty,.error{text-align:center;color:var(--muted);margin-top:20px;}
+    :focus{outline:2px solid var(--accent);outline-offset:2px;}
   </style>
 </head>
 <body>
   <header id="app-header"></header>
   <div class="q-admin">
     <aside class="filters">
-      <label>Tópico <input id="fTopic" /></label>
+      <label>Tópico <input id="fTopic" aria-label="Filtrar por tópico" /></label>
       <label>Status
-        <select id="fStatus">
+        <select id="fStatus" aria-label="Filtrar por status">
           <option value="">Todos</option>
           <option value="draft">Rascunho</option>
           <option value="published">Publicado</option>
         </select>
       </label>
-      <label>Imagem
-        <select id="fImage">
+      <label>Imagem?
+        <select id="fImage" aria-label="Filtrar por imagem">
           <option value="">Todas</option>
-          <option value="yes">Com</option>
-          <option value="no">Sem</option>
+          <option value="1">Com</option>
+          <option value="0">Sem</option>
         </select>
       </label>
-      <label>Desde <input type="date" id="fDate" /></label>
+      <label>Desde <input type="date" id="fSince" aria-label="Filtrar por data" /></label>
       <label>Ordenar
-        <select id="fSort">
+        <select id="fSort" aria-label="Ordenar">
           <option value="recent">Recentes</option>
-          <option value="alpha">A–Z</option>
+          <option value="az">A–Z</option>
         </select>
       </label>
     </aside>
     <main class="list-area">
       <div class="search-bar">
-        <input type="text" id="search" placeholder="Pesquisar" />
-        <button id="newBtn">Nova questão</button>
+        <input type="text" id="search" placeholder="Pesquisar" aria-label="Pesquisar" />
+        <button id="newBtn" type="button">Nova questão</button>
       </div>
       <div id="list"></div>
       <div id="pagination" class="search-bar" style="justify-content:center;"></div>

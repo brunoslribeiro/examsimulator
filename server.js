@@ -207,19 +207,19 @@ app.post('/api/questions', async (req, res) => {
 });
 
 app.get('/api/questions', async (req, res) => {
-  const { examId, q, topic, status, hasImage, date, sort = 'recent', page = 1 } = req.query;
+  const { examId, q, topic, status, hasImage, since, sort = 'recent', page = 1 } = req.query;
   const query = { deleted: false };
   if (examId) query.examId = examId;
   if (topic) query.topic = new RegExp(topic, 'i');
   if (status) query.status = status;
-  if (hasImage === 'yes') query.imagePath = { $ne: '' };
-  if (hasImage === 'no') query.imagePath = { $in: ['', null] };
-  if (date) query.updatedAt = { $gte: new Date(date) };
+  if (hasImage === '1') query.imagePath = { $ne: '' };
+  if (hasImage === '0') query.imagePath = { $in: ['', null] };
+  if (since) query.updatedAt = { $gte: new Date(since) };
   if (q) query.text = new RegExp(q, 'i');
 
   const limit = 20;
   const skip = (Number(page) - 1) * limit;
-  const sortObj = sort === 'alpha' ? { text: 1 } : { updatedAt: -1 };
+  const sortObj = sort === 'az' ? { text: 1 } : { updatedAt: -1 };
   const [items, total] = await Promise.all([
     Question.find(query).sort(sortObj).skip(skip).limit(limit),
     Question.countDocuments(query)
