@@ -2,6 +2,14 @@ const api = (u, o={}) => fetch(u, o).then(r => r.json());
 const examId = new URLSearchParams(location.search).get('examId');
 if (!examId) { document.body.innerHTML = '<p class="card">examId obrigatório.</p>'; throw new Error('no examId'); }
 
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+
+const answersKey = `answers-${examId}`;
+const flaggedKey = `flagged-${examId}`;
+const idxKey = `index-${examId}`;
+const timeKey = `time-${examId}`;
+const settingsKey = `settings-${examId}`;
+
 const state = {
   currentIndex: 0,
   answers: {},
@@ -10,7 +18,10 @@ const state = {
   paused: true,
   elapsedSec: 0,
   timer: null,
-  data: null
+  data: null,
+  settings: {},
+  mode: 'exam',
+  duration: 3600
 };
 
 const els = {
@@ -29,31 +40,50 @@ const els = {
   filters: document.querySelectorAll('.filter'),
   start: document.getElementById('start'),
   pause: document.getElementById('pause'),
-  end: document.getElementById('end')
+  end: document.getElementById('end'),
+  settingsModal: document.getElementById('settings-modal'),
+  settingsForm: document.getElementById('settings-form'),
+  setCount: document.getElementById('set-count'),
+  setRandom: document.getElementById('set-random'),
+  setShuffle: document.getElementById('set-shuffle'),
+  setSidebar: document.getElementById('set-sidebar'),
+  toggleSidebar: document.getElementById('toggle-sidebar'),
+  help: document.getElementById('shortcut-help'),
+  closeHelp: document.getElementById('close-help'),
+  pauseOverlay: document.getElementById('pause-overlay')
 };
 
-function updateTimer() {
-  const m = String(Math.floor(state.elapsedSec/60)).padStart(2,'0');
-  const s = String(state.elapsedSec%60).padStart(2,'0');
+function updateTimer(){
+  const remaining = Math.max(0, state.duration - state.elapsedSec);
+  const m = String(Math.floor(remaining/60)).padStart(2,'0');
+  const s = String(remaining%60).padStart(2,'0');
   els.timer.textContent = m+':'+s;
+  els.timer.classList.toggle('warning', remaining<=300 && remaining>60);
+  els.timer.classList.toggle('danger', remaining<=60);
 }
 
-function tick() {
-  state.elapsedSec++; updateTimer();
+function tick(){
+  if(state.elapsedSec < state.duration){ state.elapsedSec++; localStorage.setItem(timeKey,state.elapsedSec); updateTimer(); }
+  else endTimer();
 }
 
 function startTimer(){
   if (state.timer) return;
   state.timer = setInterval(tick, 1000);
   state.started = true; state.paused = false;
+  document.body.classList.remove('paused');
 }
 function pauseTimer(){
   if (!state.timer) return;
   clearInterval(state.timer); state.timer = null; state.paused = true;
+  localStorage.setItem(timeKey,state.elapsedSec);
+  document.body.classList.add('paused');
 }
 function endTimer(){
   if (state.timer) clearInterval(state.timer);
   state.timer = null; state.started = false; state.paused = true; state.elapsedSec = 0; updateTimer();
+  localStorage.removeItem(timeKey);
+  document.body.classList.add('paused');
 }
 
 function showToast(msg='Saved just now'){
@@ -74,12 +104,19 @@ function buildSidebar(){
 }
 
 function updateSidebar(){
-  const total = state.data.questions.length;
   Array.from(els.qnums.children).forEach((el, idx)=>{
     const q = state.data.questions[idx];
-    el.classList.toggle('answered', state.answers[q._id] !== undefined);
+    const ansIdx = state.answers[q._id];
+    el.classList.toggle('answered', ansIdx !== undefined);
     el.classList.toggle('flagged', state.flagged.has(q._id));
     el.classList.toggle('current', idx === state.currentIndex);
+    if(state.mode==='practice' && ansIdx !== undefined){
+      const correct = q.options[ansIdx] && q.options[ansIdx].isCorrect;
+      el.classList.toggle('correct', correct);
+      el.classList.toggle('wrong', !correct);
+    } else {
+      el.classList.remove('correct','wrong');
+    }
   });
   filterQnums(document.querySelector('.filter.active').dataset.filter);
 }
@@ -91,30 +128,52 @@ function updateProgress(){
   els.progressBar.style.width = (answered/total*100)+'%';
 }
 
+function showCorrectness(q){
+  const ans = state.answers[q._id];
+  Array.from(els.form.querySelectorAll('.option-card')).forEach((label, idx)=>{
+    const opt = q.options[idx];
+    label.classList.remove('correct','wrong');
+    if(opt.isCorrect) label.classList.add('correct');
+    if(ans===idx && !opt.isCorrect) label.classList.add('wrong');
+  });
+  let exp = els.form.querySelector('.explain');
+  if(!exp){ exp = document.createElement('div'); exp.className='explain'; els.form.appendChild(exp); }
+  exp.textContent = 'Explanation placeholder';
+}
+
 function renderQuestion(){
   const q = state.data.questions[state.currentIndex];
-  els.form.innerHTML='';
-  const fs = document.createElement('fieldset');
-  const legend = document.createElement('legend'); legend.textContent = q.text || '';
-  fs.appendChild(legend);
-  q.options.forEach((o, idx)=>{
-    const label = document.createElement('label'); label.className='option-card';
-    const inp = document.createElement('input'); inp.type='radio'; inp.name='opt'; inp.value=idx;
-    if (state.answers[q._id] === idx) inp.checked = true;
-    label.appendChild(inp);
-    const span = document.createElement('span'); span.textContent = o.text || '';
-    label.appendChild(span);
-    fs.appendChild(label);
-  });
-  els.form.appendChild(fs);
-  updateSidebar(); updateProgress();
+  els.form.innerHTML='<div class="skeleton"></div>';
+  setTimeout(()=>{
+    els.form.innerHTML='';
+    const fs = document.createElement('fieldset');
+    const legend = document.createElement('legend'); legend.textContent = q.text || '';
+    fs.appendChild(legend);
+    q.options.forEach((o, idx)=>{
+      const label = document.createElement('label'); label.className='option-card';
+      const inp = document.createElement('input'); inp.type='radio'; inp.name='opt'; inp.value=idx;
+      if (state.answers[q._id] === idx) inp.checked = true;
+      label.appendChild(inp);
+      const span = document.createElement('span'); span.textContent = o.text || '';
+      label.appendChild(span);
+      fs.appendChild(label);
+    });
+    els.form.appendChild(fs);
+    els.form.classList.add('fade');
+    if(state.mode==='practice' && state.answers[q._id] !== undefined) showCorrectness(q);
+    updateSidebar(); updateProgress();
+    setTimeout(()=>els.form.classList.remove('fade'),300);
+  },300);
 }
 
 function saveCurrent(){
   const q = state.data.questions[state.currentIndex];
   const checked = els.form.querySelector('input[name="opt"]:checked');
   if (checked) state.answers[q._id] = parseInt(checked.value,10); else delete state.answers[q._id];
+  localStorage.setItem(answersKey, JSON.stringify(state.answers));
+  localStorage.setItem(idxKey, state.currentIndex);
   updateSidebar(); updateProgress();
+  if(state.mode==='practice' && checked) showCorrectness(q);
 }
 
 function filterQnums(type){
@@ -146,17 +205,18 @@ els.form.addEventListener('change', e=>{
 
 els.back.addEventListener('click', ()=>{
   saveCurrent();
-  if (state.currentIndex>0){ state.currentIndex--; renderQuestion(); }
+  if (state.currentIndex>0){ state.currentIndex--; localStorage.setItem(idxKey,state.currentIndex); renderQuestion(); }
 });
 
 els.saveNext.addEventListener('click', ()=>{
   saveCurrent();
-  if (state.currentIndex < state.data.questions.length-1){ state.currentIndex++; renderQuestion(); }
+  if (state.currentIndex < state.data.questions.length-1){ state.currentIndex++; localStorage.setItem(idxKey,state.currentIndex); renderQuestion(); }
 });
 
 els.mark.addEventListener('click', ()=>{
   const q = state.data.questions[state.currentIndex];
   if (state.flagged.has(q._id)) state.flagged.delete(q._id); else state.flagged.add(q._id);
+  localStorage.setItem(flaggedKey, JSON.stringify([...state.flagged]));
   updateSidebar();
 });
 
@@ -166,10 +226,25 @@ els.submit.addEventListener('click', async ()=>{
   const answered = Object.keys(state.answers).length;
   const blank = total - answered;
   const flagged = state.flagged.size;
-  if (!confirm(`Submit?\nAnswered: ${answered}\nBlank: ${blank}\nFlagged: ${flagged}`)) return;
-  const payload = Object.entries(state.answers).map(([id, idx])=>({questionId:id, selectedIndices: idx!=null?[idx]:[]}));
-  const res = await api('/api/attempts', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({examId, answers:payload})});
-  els.result.innerHTML = '<div class="card">'+(res.error || `Score: ${res.score.correct}/${res.score.total}`)+'</div>';
+  let correct=0, wrong=0;
+  if(state.mode==='practice'){
+    state.data.questions.forEach(q=>{
+      const ans = state.answers[q._id];
+      if(ans!==undefined){
+        if(q.options[ans] && q.options[ans].isCorrect) correct++; else wrong++;
+      }
+    });
+  }
+  let msg = `Submit?\nAnswered: ${answered}\nBlank: ${blank}\nFlagged: ${flagged}`;
+  if(state.mode==='practice') msg += `\nCorrect: ${correct}\nWrong: ${wrong}`;
+  if (!confirm(msg)) return;
+  if(state.mode==='exam'){
+    const payload = Object.entries(state.answers).map(([id, idx])=>({questionId:id, selectedIndices: idx!=null?[idx]:[]}));
+    const res = await api('/api/attempts', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({examId, answers:payload})});
+    els.result.innerHTML = '<div class="card">'+(res.error || `Score: ${res.score.correct}/${res.score.total}`)+'</div>';
+  } else {
+    els.result.innerHTML = `<div class="card">Score: ${correct}/${total}</div>`;
+  }
 });
 
 els.start.addEventListener('click', startTimer);
@@ -177,7 +252,7 @@ els.pause.addEventListener('click', pauseTimer);
 els.end.addEventListener('click', endTimer);
 
 function handleKey(e){
-  if (e.target.tagName === 'INPUT') return;
+  if (e.target.tagName === 'INPUT' || !state.data) return;
   const q = state.data.questions[state.currentIndex];
   const opts = Array.from(els.form.querySelectorAll('input[name="opt"]'));
   if (e.key === 'ArrowDown'){ e.preventDefault(); const i = (opts.indexOf(document.activeElement)+1)%opts.length; opts[i].focus(); }
@@ -186,16 +261,64 @@ function handleKey(e){
   else if (e.key.toLowerCase()==='m'){ els.mark.click(); }
   else if (e.key.toLowerCase()==='n'){ els.saveNext.click(); }
   else if (e.key.toLowerCase()==='b'){ els.back.click(); }
+  else if (e.key === '?'){ e.preventDefault(); els.help.classList.remove('hidden'); }
 }
 
 document.addEventListener('keydown', handleKey);
+els.toggleSidebar.addEventListener('click', ()=>{ document.body.classList.toggle('sidebar-hidden'); });
+els.closeHelp.addEventListener('click', ()=> els.help.classList.add('hidden'));
+
+function applySettings(){
+  state.data = { exam: state.raw.exam, questions: [...state.raw.questions] };
+  if(state.settings.random) shuffle(state.data.questions);
+  if(state.settings.count && state.settings.count < state.data.questions.length) state.data.questions = state.data.questions.slice(0,state.settings.count);
+  if(state.settings.shuffle) state.data.questions.forEach(q=>shuffle(q.options));
+  state.answers = JSON.parse(localStorage.getItem(answersKey)||'{}');
+  state.flagged = new Set(JSON.parse(localStorage.getItem(flaggedKey)||'[]'));
+  state.currentIndex = parseInt(localStorage.getItem(idxKey)||'0',10);
+  state.elapsedSec = parseInt(localStorage.getItem(timeKey)||'0',10);
+  state.mode = state.settings.mode || 'exam';
+  updateTimer();
+  buildSidebar();
+  if(state.currentIndex >= state.data.questions.length) state.currentIndex = 0;
+  renderQuestion();
+}
+
+els.settingsForm.addEventListener('submit', e=>{
+  e.preventDefault();
+  const s = {
+    count: Math.min(parseInt(els.setCount.value,10)||state.raw.questions.length, state.raw.questions.length),
+    random: els.setRandom.checked,
+    shuffle: els.setShuffle.checked,
+    hideSidebar: els.setSidebar.checked,
+    mode: els.settingsForm.mode.value
+  };
+  state.settings = s;
+  state.mode = s.mode;
+  localStorage.setItem(settingsKey, JSON.stringify(s));
+  els.settingsModal.classList.add('hidden');
+  if(s.hideSidebar) document.body.classList.add('sidebar-hidden'); else document.body.classList.remove('sidebar-hidden');
+  applySettings();
+});
 
 async function load(){
-  state.data = await api('/api/exams/' + examId);
-  els.examTitle.textContent = state.data.exam.title;
-  buildSidebar();
-  renderQuestion();
-  updateTimer();
+  document.body.classList.add('paused');
+  state.raw = await api('/api/exams/' + examId);
+  els.examTitle.textContent = state.raw.exam.title;
+  state.duration = state.raw.exam.duration || state.duration;
+  els.setCount.max = state.raw.questions.length;
+  els.setCount.value = state.raw.questions.length;
+  const saved = JSON.parse(localStorage.getItem(settingsKey)||'{}');
+  if(saved.count) els.setCount.value = saved.count;
+  els.setRandom.checked = !!saved.random;
+  els.setShuffle.checked = !!saved.shuffle;
+  els.setSidebar.checked = !!saved.hideSidebar;
+  if(saved.mode){ const r = els.settingsForm.querySelector(`input[name="mode"][value="${saved.mode}"]`); if(r) r.checked=true; }
+  state.settings = saved;
 }
 
 load();
+
+window.addEventListener('beforeunload', e=>{
+  if(state.started && !state.paused){ e.preventDefault(); e.returnValue=''; }
+});
