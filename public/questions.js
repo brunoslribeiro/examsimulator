@@ -191,9 +191,9 @@ $('#list').on('click','.overflow',function(e){
   menu.append('<button class="dup">Duplicar</button>');
   menu.append('<button class="del">Excluir</button>');
   $(this).after(menu.show());
-  menu.on('click','.edit',()=>{ const q=state.items.find(x=>x._id===id); openModal(q); });
-  menu.on('click','.dup',()=>{ const q=state.items.find(x=>x._id===id); const copy=JSON.parse(JSON.stringify(q)); delete copy._id; openModal(copy); });
-  menu.on('click','.del',async()=>{ if(confirm('Excluir?')){ await api('/api/questions/'+id,{method:'DELETE'}); const row=$(menu).closest('.q-row'); row.slideUp(200,()=>{ row.remove(); fetchList(); }); } });
+  menu.on('click','.edit',function(e){ e.stopPropagation(); const q=state.items.find(x=>x._id===id); menu.remove(); openModal(q); });
+  menu.on('click','.dup',function(e){ e.stopPropagation(); const q=state.items.find(x=>x._id===id); const copy=JSON.parse(JSON.stringify(q)); delete copy._id; menu.remove(); openModal(copy); });
+  menu.on('click','.del',async function(e){ e.stopPropagation(); if(confirm('Excluir?')){ await api('/api/questions/'+id,{method:'DELETE'}); const row=$(menu).closest('.q-row'); menu.remove(); row.slideUp(200,()=>{ row.remove(); fetchList(); }); } });
 });
 $(document).on('click',function(){ $('.row-menu').remove(); });
 
