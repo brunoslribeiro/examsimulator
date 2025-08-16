@@ -1,271 +1,206 @@
-const api = (u, o={}) => fetch(u, o).then(r => r.json());
+const api = (u,o={})=>fetch(u,o).then(r=>r.json());
 const examId = new URLSearchParams(location.search).get('examId');
-if(!examId){ document.body.innerHTML = '<p class="container">examId obrigatório.</p>'; throw new Error('no examId'); }
+if(!examId){ document.body.innerHTML='<p class="container">examId obrigatório.</p>'; throw new Error('no examId'); }
 
-const state = {
-  all: [],
-  filtered: [],
-  selected: new Set(),
-  currentPage: 1,
-  perPage: 10,
-  filters: { search:'', type:'all', status:'all', hasImage:'all', topic:'', updatedSince:'', sort:'updated' },
-  dirty:false
-};
+const state = { q:'', topic:'', status:'', hasImage:'', date:'', sort:'recent', page:1, total:0, items:[], dirty:false };
+let controller = null;
+let lastFocus = null;
 
-function debounce(fn, delay){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), delay); }; }
+function loadFromQuery(){
+  const p = new URLSearchParams(location.search);
+  state.q = p.get('q')||'';
+  state.topic = p.get('topic')||'';
+  state.status = p.get('status')||'';
+  state.hasImage = p.get('hasImage')||'';
+  state.date = p.get('date')||'';
+  state.sort = p.get('sort')||'recent';
+  state.page = parseInt(p.get('page')||'1',10);
+  $('#search').val(state.q);
+  $('#fTopic').val(state.topic);
+  $('#fStatus').val(state.status);
+  $('#fImage').val(state.hasImage);
+  $('#fDate').val(state.date);
+  $('#fSort').val(state.sort);
+}
+
+function updateQuery(){
+  const p = new URLSearchParams();
+  if(state.q) p.set('q',state.q);
+  if(state.topic) p.set('topic',state.topic);
+  if(state.status) p.set('status',state.status);
+  if(state.hasImage) p.set('hasImage',state.hasImage);
+  if(state.date) p.set('date',state.date);
+  if(state.sort && state.sort!=='recent') p.set('sort',state.sort);
+  if(state.page>1) p.set('page',state.page);
+  p.set('examId',examId);
+  history.replaceState(null,'','?'+p.toString());
+}
+
+function showSkeleton(){
+  const list = $('#list').empty();
+  for(let i=0;i<5;i++) list.append('<div class="skeleton"></div>');
+}
 
 async function loadList(){
-  state.all = await api('/api/questions?examId='+examId);
-  applyFilters();
+  showSkeleton();
+  if(controller) controller.abort();
+  controller = new AbortController();
+  const params = new URLSearchParams({ examId, q:state.q, topic:state.topic, status:state.status, hasImage:state.hasImage, date:state.date, sort:state.sort, page:state.page });
+  try{
+    const res = await fetch('/api/questions?'+params.toString(), { signal: controller.signal }).then(r=>r.json());
+    state.items = res.items || [];
+    state.total = res.total || 0;
+    $('#list').html(renderList(state.items, state.q));
+    $('#list .q-row').each(function(i){ $(this).delay(i*30).fadeIn(200); });
+    renderPagination();
+    if(!state.items.length){ $('#list').html('<p class="muted">Nenhum resultado.</p>'); }
+  }catch(e){ if(e.name!=='AbortError') console.error(e); }
 }
 
-function applyFilters(){
-  state.filtered = filterQuestions(state.all, state.filters);
-  renderList();
+function renderPagination(){
+  const totalPages = Math.max(1, Math.ceil(state.total/20));
+  const box = $('#pagination').empty();
+  if(totalPages<=1){ return; }
+  const prev = $('<button aria-label="Prev">◀️</button>').prop('disabled',state.page===1).on('click',()=>{state.page--;updateQuery();loadList();});
+  const next = $('<button aria-label="Next">▶️</button>').prop('disabled',state.page===totalPages).on('click',()=>{state.page++;updateQuery();loadList();});
+  box.append(prev).append(`<span>${state.page}/${totalPages}</span>`).append(next);
 }
 
-function renderList(){
-  const list = document.getElementById('list');
-  list.innerHTML='';
-  const start = (state.currentPage-1)*state.perPage;
-  const items = state.filtered.slice(start, start+state.perPage);
-  if(!items.length){ list.innerHTML='<p class="muted">Nenhuma questão.</p>'; }
-  items.forEach(q=>{
-    const row=document.createElement('div'); row.className='q-row';
-    row.innerHTML = `<input type="checkbox" class="sel" data-id="${q._id}" ${state.selected.has(q._id)?'checked':''}/>`+
-      `<div style="flex:1"><div>${(q.text||'').slice(0,80)}</div>`+
-      `<div class="meta">${q._id} • ${q.type}${q.topic?' • '+q.topic:''} • ${q.status} • ${new Date(q.updatedAt).toLocaleDateString()} ${q.imagePath?'📷':''}</div></div>`+
-      `<button class="rowMenu" data-id="${q._id}">⋮</button>`;
-    list.appendChild(row);
+function openModal(data){
+  lastFocus = document.activeElement;
+  resetForm();
+  if(data){
+    $('#qid').val(data._id||'');
+    $('#qtext').val(data.text||'');
+    $('#qtopic').val(data.topic||'');
+    $('#qstatus').val(data.status||'draft');
+    $('#qtype').val(data.type||'single');
+    if(data.imagePath){ $('#qimgPreview').attr('src',data.imagePath).show(); $('#qimg').data('imagePath',data.imagePath); }
+    $('#opts').empty();
+    (data.options||[]).forEach(o=>addOptRow(o));
+  } else {
+    addOptRow(); addOptRow();
+  }
+  $('#qtextCount').text($('#qtext').val().length);
+  $('#editorModal').addClass('open').attr('aria-hidden','false');
+  $('body').addClass('modal-open');
+  const focusable = $('#editorModal').find('button, [href], input, select, textarea').filter(':visible');
+  focusable.first().focus();
+  $('#editorModal').on('keydown.modal',function(e){
+    if(e.key==='Escape'){ e.preventDefault(); closeModal(); }
+    if(e.key==='Tab'){
+      const first=focusable[0], last=focusable[focusable.length-1];
+      if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+    }
   });
-  const totalPages = Math.ceil(state.filtered.length/state.perPage)||1;
-  renderPagination(totalPages);
-  toggleBulk();
 }
 
-function renderPagination(total){
-  const box=document.getElementById('pagination');
-  if(total<=1){ box.innerHTML=''; return; }
-  box.innerHTML='';
-  const prev=document.createElement('button'); prev.textContent='◀️'; prev.disabled=state.currentPage===1; prev.onclick=()=>{if(state.currentPage>1){state.currentPage--;renderList();}}; box.appendChild(prev);
-  const span=document.createElement('span'); span.textContent=`${state.currentPage}/${total}`; box.appendChild(span);
-  const next=document.createElement('button'); next.textContent='▶️'; next.disabled=state.currentPage===total; next.onclick=()=>{if(state.currentPage<total){state.currentPage++;renderList();}}; box.appendChild(next);
-}
-
-function toggleBulk(){
-  document.getElementById('bulkActions').classList.toggle('hidden', state.selected.size===0);
+function closeModal(){
+  if(state.dirty && !confirm('Descartar alterações?')) return;
+  $('#editorModal').removeClass('open').attr('aria-hidden','true');
+  $('body').removeClass('modal-open');
+  $('#editorModal').off('keydown.modal');
+  state.dirty=false;
+  if(lastFocus) $(lastFocus).focus();
 }
 
 function addOptRow(data={}){
-  const div=document.createElement('div');
-  div.className='opt';
-  div.draggable=true;
-  div.innerHTML=`<div class="row"><span class="drag" style="cursor:grab">↕</span>
-    <label>Texto <input class="t" value="${data.text||''}"/></label>
-    <label>Imagem <input type="file" class="f" accept="image/*"/></label>
-    <label>Correta? <input type="checkbox" class="c" ${data.isCorrect?'checked':''}/></label>
-    <button type="button" class="danger remove">✖️</button></div>
-    <img class="preview" ${data.imagePath?`src="${data.imagePath}"`:'style="display:none"'} />`;
-  const file=div.querySelector('.f');
-  const img=div.querySelector('.preview');
-  file.onchange=async()=>{
-    const f=file.files&&file.files[0]; if(!f) return;
-    const fd=new FormData(); fd.append('file',f);
-    const res=await fetch('/api/upload',{method:'POST',body:fd}).then(r=>r.json());
-    if(res.path){ div.dataset.imagePath=res.path; img.src=res.path; img.style.display='block'; toast('Imagem enviada'); }
-  };
-  if(data.imagePath) div.dataset.imagePath=data.imagePath;
-  div.querySelector('.remove').onclick=()=>{ div.remove(); state.dirty=true; };
-  // drag & drop
-  div.addEventListener('dragstart',e=>{ div.classList.add('dragging'); });
-  div.addEventListener('dragend',e=>{ div.classList.remove('dragging'); });
-  document.getElementById('opts').appendChild(div);
+  const div=$('<div class="opt row"></div>');
+  div.append(`<input class="t" placeholder="Opção" value="${data.text||''}"/>`);
+  const file=$('<input type="file" class="f" accept="image/*" />');
+  div.append(file);
+  const chk=$(`<label>Correta? <input type="checkbox" class="c" ${data.isCorrect?'checked':''}/></label>`);
+  div.append(chk);
+  const rm=$('<button type="button" class="danger">✖️</button>').on('click',()=>{div.remove();state.dirty=true;});
+  div.append(rm);
+  const img=$('<img class="preview" style="display:none"/>');
+  div.append(img);
+  if(data.imagePath){ img.attr('src',data.imagePath).show(); file.data('imagePath',data.imagePath); }
+  file.on('change',async function(){ const f=this.files[0]; if(!f) return; const fd=new FormData(); fd.append('file',f); const res=await fetch('/api/upload',{method:'POST',body:fd}).then(r=>r.json()); if(res.path){ file.data('imagePath',res.path); img.attr('src',res.path).show(); toast('Imagem enviada'); } });
+  $('#opts').append(div);
 }
 
 function gatherForm(){
-  const options=[...document.querySelectorAll('#opts .opt')].map(div=>({
-    text:(div.querySelector('.t').value||'').trim(),
-    imagePath:div.dataset.imagePath||'',
-    isCorrect:div.querySelector('.c').checked
-  }));
-  return {
-    _id: document.getElementById('qid').value,
-    text: document.getElementById('qtext').value.trim(),
-    topic: document.getElementById('qtopic').value.trim(),
-    status: document.getElementById('qstatus').value,
-    type: document.getElementById('qtype').value,
-    imagePath: document.getElementById('qimg').dataset.imagePath || '',
-    options
-  };
+  const options=[];
+  $('#opts .opt').each(function(){
+    options.push({ text:$(this).find('.t').val().trim(), imagePath:$(this).find('.f').data('imagePath')||'', isCorrect:$(this).find('.c').prop('checked') });
+  });
+  return { _id:$('#qid').val(), text:$('#qtext').val().trim(), topic:$('#qtopic').val().trim(), status:$('#qstatus').val(), type:$('#qtype').val(), imagePath:$('#qimg').data('imagePath')||'', options };
 }
 
 function resetForm(){
-  document.getElementById('qid').value='';
-  document.getElementById('qForm').reset();
-  document.getElementById('opts').innerHTML='';
-  document.getElementById('qimgPreview').style.display='none';
-  addOptRow(); addOptRow();
+  $('#qForm')[0].reset();
+  $('#qimg').removeData('imagePath');
+  $('#qimgPreview').hide().attr('src','');
+  $('#opts').empty();
+  $('#qtextCount').text('0');
   state.dirty=false;
-}
-
-function editQuestion(q){
-  resetForm();
-  document.getElementById('qid').value=q._id;
-  document.getElementById('qtext').value=q.text||'';
-  document.getElementById('qtopic').value=q.topic||'';
-  document.getElementById('qstatus').value=q.status||'draft';
-  document.getElementById('qtype').value=q.type||'single';
-  if(q.imagePath){ document.getElementById('qimgPreview').src=q.imagePath; document.getElementById('qimgPreview').style.display='block'; document.getElementById('qimg').dataset.imagePath=q.imagePath; }
-  document.getElementById('opts').innerHTML='';
-  (q.options||[]).forEach(o=>addOptRow(o));
-  state.dirty=false;
-}
-
-function duplicateQuestion(q){
-  const copy=JSON.parse(JSON.stringify(q)); delete copy._id; editQuestion(copy);
-}
-
-function previewQuestion(q){
-  const box=document.getElementById('previewPane');
-  box.style.display='block';
-  const opts=q.options.map((o,i)=>`<div class="option-card"><input type="${q.type==='single'?'radio':'checkbox'}" disabled/><span>${o.text||''}</span></div>`).join('');
-  box.innerHTML=`<h3>Prévia</h3><p>${q.text}</p>${opts}`;
 }
 
 async function saveQuestion(andNew){
+  if(!document.getElementById('qForm').checkValidity()){ document.getElementById('qForm').reportValidity(); return; }
   const data=gatherForm();
   const val=validateQuestion(data);
-  if(!val.ok){ alert('Preencha corretamente: '+val.errors.join(',')); return; }
+  if(!val.ok){ alert('Preencha corretamente'); return; }
   const method=data._id?'PUT':'POST';
   const url=data._id?'/api/questions/'+data._id:'/api/questions';
   const payload={ examId, text:data.text, topic:data.topic, status:data.status, type:data.type, options:data.options, imagePath:data.imagePath };
   await api(url,{method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
   toast('Salvo');
-  if(andNew){ resetForm(); } else { state.dirty=false; }
+  state.dirty=false;
+  if(andNew){ resetForm(); addOptRow(); addOptRow(); }
+  else { closeModal(); }
   loadList();
 }
 
-// events
-
-document.getElementById('search').addEventListener('input', debounce(e=>{ state.filters.search=e.target.value; state.currentPage=1; applyFilters(); },300));
-['filterType','filterStatus','filterImage','filterTopic','filterUpdated','sort'].forEach(id=>{
-  document.getElementById(id).addEventListener('change', e=>{
-    const val=e.target.value;
-    if(id==='filterTopic') state.filters.topic=val; else if(id==='filterUpdated') state.filters.updatedSince=val; else if(id==='filterType') state.filters.type=val; else if(id==='filterStatus') state.filters.status=val; else if(id==='filterImage') state.filters.hasImage=val; else if(id==='sort') state.filters.sort=val;
-    state.currentPage=1; applyFilters();
-  });
-});
-
-document.getElementById('list').addEventListener('change',e=>{
-  if(e.target.classList.contains('sel')){
-    const id=e.target.dataset.id; if(e.target.checked) state.selected.add(id); else state.selected.delete(id); toggleBulk();
-  }
-});
-
-document.getElementById('list').addEventListener('click',e=>{
-  if(e.target.classList.contains('rowMenu')){
-    const id=e.target.dataset.id; const q=state.all.find(x=>x._id===id); const act=prompt('a=editar, d=duplicar, p=preview, x=excluir');
-    if(act==='a'){ editQuestion(q); }
-    else if(act==='d'){ duplicateQuestion(q); }
-    else if(act==='p'){ previewQuestion(q); }
-    else if(act==='x'){ if(confirm('Excluir?')){ api('/api/questions/'+id,{method:'DELETE'}).then(()=>{toast('Excluída'); loadList();}); } }
-  }
-});
-
-// drag and drop ordering
-const optsBox=document.getElementById('opts');
-optsBox.addEventListener('dragover', e=>{
-  const dragging=document.querySelector('.opt.dragging');
-  if(!dragging) return;
-  e.preventDefault();
-  const after=[...optsBox.querySelectorAll('.opt:not(.dragging)')].find(el=> e.clientY <= el.getBoundingClientRect().top + el.offsetHeight/2);
-  if(after) optsBox.insertBefore(dragging, after); else optsBox.appendChild(dragging);
-});
-
-// image preview for question statement
-const qimg=document.getElementById('qimg');
-qimg.onchange=async()=>{
-  const f=qimg.files && qimg.files[0]; if(!f) return;
-  const fd=new FormData(); fd.append('file',f);
-  const res=await fetch('/api/upload',{method:'POST',body:fd}).then(r=>r.json());
-  if(res.path){ qimg.dataset.imagePath=res.path; const img=document.getElementById('qimgPreview'); img.src=res.path; img.style.display='block'; toast('Imagem enviada'); }
-};
-
-// counters
-const qtext=document.getElementById('qtext');
-const qtextCount=document.getElementById('qtextCount');
-const updateCount=()=>{ qtextCount.textContent=qtext.value.length+'/1000'; };
-qtext.addEventListener('input',()=>{ updateCount(); state.dirty=true; });
-updateCount();
-
-// form events
-
-document.getElementById('qForm').addEventListener('submit',e=>{ e.preventDefault(); saveQuestion(false); });
-document.getElementById('saveNew').onclick=()=>saveQuestion(true);
-document.getElementById('duplicate').onclick=()=>{ const id=document.getElementById('qid').value; if(!id) return; const q=state.all.find(x=>x._id===id); if(q) duplicateQuestion(q); };
-document.getElementById('cancel').onclick=()=>{ if(state.dirty && !confirm('Descartar alterações?')) return; resetForm(); };
-document.getElementById('preview').onclick=()=>{ previewQuestion(gatherForm()); };
-
-document.getElementById('addOpt').onclick=()=>{ addOptRow(); state.dirty=true; };
-
-// bulk actions
-async function bulk(action){
-  const ids=[...state.selected];
-  if(action==='delete'){
-    if(!confirm('Excluir '+ids.length+'?')) return;
-    await api('/api/questions/bulk',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids,action:'delete'})});
-  } else if(action==='publish' || action==='unpublish'){
-    await api('/api/questions/bulk',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids,action})});
-  }
-  toast('Concluído');
-  state.selected.clear(); toggleBulk(); loadList();
-}
-
-document.getElementById('bulkDelete').onclick=()=>bulk('delete');
-document.getElementById('bulkPublish').onclick=()=>bulk('publish');
-document.getElementById('bulkUnpublish').onclick=()=>bulk('unpublish');
-document.getElementById('bulkExport').onclick=()=>{
-  const rows=state.all.filter(q=>state.selected.has(q._id));
-  const csv=['id,text,type,topic,status'].concat(rows.map(q=>`"${q._id}","${(q.text||'').replace(/"/g,'""')}",${q.type},${q.topic||''},${q.status}`)).join('\n');
-  const blob=new Blob([csv],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='questions.csv'; a.click();
-};
-
-document.getElementById('bulkReplace').onclick=()=>{ document.getElementById('replaceModal').classList.remove('hidden'); };
-
-document.getElementById('repClose').onclick=()=>{ document.getElementById('replaceModal').classList.add('hidden'); document.getElementById('repPreview').innerHTML=''; };
-
-function getScopeList(){
-  const scope=document.getElementById('repScope').value;
-  if(scope==='selected') return state.all.filter(q=>state.selected.has(q._id));
-  if(scope==='filtered') return state.filtered;
-  return state.all;
-}
-
-document.getElementById('repRun').onclick=()=>{
-  const find=document.getElementById('repFind').value;
-  const replace=document.getElementById('repReplace').value;
-  const list=getScopeList();
-  const res=dryRunReplace(list, find, replace, {caseSensitive:document.getElementById('repCase').checked, wholeWord:document.getElementById('repWhole').checked, regex:document.getElementById('repRegex').checked});
-  const box=document.getElementById('repPreview');
-  if(!res.count){ box.textContent='Nenhuma questão afetada.'; document.getElementById('repApply').style.display='none'; return; }
-  box.innerHTML=res.questions.map(q=>`<p><strong>${q.before}</strong><br/>➡️ ${q.after}</p>`).join('');
-  document.getElementById('repApply').style.display='inline-block';
-};
-
-document.getElementById('repApply').onclick=async()=>{
-  const find=document.getElementById('repFind').value;
-  const replace=document.getElementById('repReplace').value;
-  const list=dryRunReplace(getScopeList(), find, replace, {caseSensitive:document.getElementById('repCase').checked, wholeWord:document.getElementById('repWhole').checked, regex:document.getElementById('repRegex').checked}).questions;
-  for(const q of list){
-    await api('/api/questions/'+q.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:q.after})});
-  }
-  toast('Atualizado em '+list.length+' questões');
-  document.getElementById('replaceModal').classList.add('hidden');
-  state.selected.clear(); toggleBulk(); loadList();
-};
-
-window.addEventListener('beforeunload',e=>{ if(state.dirty){ e.preventDefault(); e.returnValue=''; } });
-
-// init
-resetForm();
+// Events
+loadFromQuery();
+updateQuery();
 loadList();
+
+$('#search').on('input', debounce(function(){ state.q=this.value; state.page=1; updateQuery(); loadList(); },300));
+$('#fTopic').on('input', debounce(function(){ state.topic=this.value; state.page=1; updateQuery(); loadList(); },300));
+$('#fStatus, #fImage, #fDate, #fSort').on('change', function(){
+  const id=this.id;
+  if(id==='fStatus') state.status=this.value;
+  else if(id==='fImage') state.hasImage=this.value;
+  else if(id==='fDate') state.date=this.value;
+  else if(id==='fSort') state.sort=this.value;
+  state.page=1; updateQuery(); loadList();
+});
+
+$('#pagination').on('click','button',function(){ /* handled in renderPagination */ });
+
+$('#list').on('click','.overflow',function(e){
+  e.stopPropagation();
+  $('.row-menu').remove();
+  const id=$(this).closest('.q-row').data('id');
+  const menu=$('<div class="row-menu"></div>');
+  menu.append('<button class="edit">Editar</button>');
+  menu.append('<button class="dup">Duplicar</button>');
+  menu.append('<button class="del">Excluir</button>');
+  $(this).after(menu.show());
+  menu.on('click','.edit',()=>{ const q=state.items.find(x=>x._id===id); openModal(q); });
+  menu.on('click','.dup',()=>{ const q=state.items.find(x=>x._id===id); const copy=JSON.parse(JSON.stringify(q)); delete copy._id; openModal(copy); });
+  menu.on('click','.del',async()=>{ if(confirm('Excluir?')){ await api('/api/questions/'+id,{method:'DELETE'}); const row=$(menu).closest('.q-row'); row.slideUp(200,()=>{ row.remove(); loadList(); }); } });
+});
+$(document).on('click',function(){ $('.row-menu').remove(); });
+
+$('#newBtn').on('click',()=>openModal());
+$('#editorModal').on('click',function(e){ if(e.target===this) closeModal(); });
+$('#cancel').on('click',e=>{ e.preventDefault(); closeModal(); });
+$('#save').on('click',e=>{ e.preventDefault(); saveQuestion(false); });
+$('#saveNew').on('click',e=>{ e.preventDefault(); saveQuestion(true); });
+$('#addOpt').on('click',()=>{ addOptRow(); state.dirty=true; });
+$('#qForm').on('change input',()=>{ state.dirty=true; });
+$('#qimg').on('change',async function(){ const f=this.files[0]; if(!f) return; const fd=new FormData(); fd.append('file',f); const res=await fetch('/api/upload',{method:'POST',body:fd}).then(r=>r.json()); if(res.path){ $(this).data('imagePath',res.path); $('#qimgPreview').attr('src',res.path).show(); } });
+$('#removeImg').on('click',function(){ $('#qimg').removeData('imagePath'); $('#qimgPreview').hide().attr('src',''); });
+$('#qtext').on('input',function(){ $('#qtextCount').text(this.value.length); });
+
+// keyboard shortcuts
+$(document).on('keydown',function(e){
+  if(e.key==='/' && !$(e.target).is('input,textarea,select')){ e.preventDefault(); $('#search').focus(); }
+  if(e.key==='n' && !$(e.target).is('input,textarea,select')){ e.preventDefault(); openModal(); }
+  if((e.ctrlKey||e.metaKey) && e.key==='s'){ if($('#editorModal').hasClass('open')){ e.preventDefault(); saveQuestion(false); } }
+});

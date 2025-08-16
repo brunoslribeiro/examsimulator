@@ -207,21 +207,24 @@ app.post('/api/questions', async (req, res) => {
 });
 
 app.get('/api/questions', async (req, res) => {
-  const { examId, type, status, hasImage, updatedSince, topic, search } = req.query;
+  const { examId, q, topic, status, hasImage, date, sort = 'recent', page = 1 } = req.query;
   const query = { deleted: false };
   if (examId) query.examId = examId;
-  if (type) query.type = type;
+  if (topic) query.topic = new RegExp(topic, 'i');
   if (status) query.status = status;
   if (hasImage === 'yes') query.imagePath = { $ne: '' };
   if (hasImage === 'no') query.imagePath = { $in: ['', null] };
-  if (updatedSince) query.updatedAt = { $gte: new Date(updatedSince) };
-  if (topic) query.topic = new RegExp(topic, 'i');
-  let list = await Question.find(query).sort({ updatedAt: -1 });
-  if (search) {
-    const term = String(search).toLowerCase();
-    list = list.filter(q => (q.text || '').toLowerCase().includes(term));
-  }
-  res.json(list);
+  if (date) query.updatedAt = { $gte: new Date(date) };
+  if (q) query.text = new RegExp(q, 'i');
+
+  const limit = 20;
+  const skip = (Number(page) - 1) * limit;
+  const sortObj = sort === 'alpha' ? { text: 1 } : { updatedAt: -1 };
+  const [items, total] = await Promise.all([
+    Question.find(query).sort(sortObj).skip(skip).limit(limit),
+    Question.countDocuments(query)
+  ]);
+  res.json({ items, total, page: Number(page) });
 });
 
 app.put('/api/questions/:id', async (req, res) => {
