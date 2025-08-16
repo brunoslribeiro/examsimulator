@@ -7,4 +7,6 @@ test('renderList outputs rows with highlight', () => {
   const html = renderList(items, 'world');
   assert(html.includes('Hello'));
   assert(html.toLowerCase().includes('<mark>world</mark>'));
+  assert(html.includes('overflow'));
+  assert(html.includes('row-menu'));
 });

@@ -23,7 +23,12 @@
       return `<div class="q-row" data-id="${it._id}" style="display:none">`
         +`<div class="snippet">${snippet}</div>`
         +`<div class="meta">${meta} ${icons}</div>`
-        +`<button class="overflow" aria-label="Ações">⋮</button>`
+        +`<button class="overflow" type="button" aria-label="Ações" aria-haspopup="true" aria-expanded="false">⋮</button>`
+        +`<div class="row-menu" role="menu">`
+        +`<button class="edit" role="menuitem">Editar</button>`
+        +`<button class="dup" role="menuitem">Duplicar</button>`
+        +`<button class="del" role="menuitem">Excluir</button>`
+        +`</div>`
         +`</div>`;
     }).join('');
   }

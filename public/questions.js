@@ -184,18 +184,45 @@ $('#pagination').on('click','button',function(){ /* handled in renderPagination 
 
 $('#list').on('click','.overflow',function(e){
   e.stopPropagation();
-  $('.row-menu').remove();
-  const id=$(this).closest('.q-row').data('id');
-  const menu=$('<div class="row-menu"></div>');
-  menu.append('<button class="edit">Editar</button>');
-  menu.append('<button class="dup">Duplicar</button>');
-  menu.append('<button class="del">Excluir</button>');
-  $(this).after(menu.show());
-  menu.on('click','.edit',function(e){ e.stopPropagation(); const q=state.items.find(x=>x._id===id); menu.remove(); openModal(q); });
-  menu.on('click','.dup',function(e){ e.stopPropagation(); const q=state.items.find(x=>x._id===id); const copy=JSON.parse(JSON.stringify(q)); delete copy._id; menu.remove(); openModal(copy); });
-  menu.on('click','.del',async function(e){ e.stopPropagation(); if(confirm('Excluir?')){ await api('/api/questions/'+id,{method:'DELETE'}); const row=$(menu).closest('.q-row'); menu.remove(); row.slideUp(200,()=>{ row.remove(); fetchList(); }); } });
+  const row=$(this).closest('.q-row');
+  const menu=row.find('.row-menu');
+  $('.row-menu').not(menu).hide();
+  menu.toggle();
+  $(this).attr('aria-expanded', menu.is(':visible'));
 });
-$(document).on('click',function(){ $('.row-menu').remove(); });
+
+$('#list').on('click','.row-menu .edit',function(e){
+  e.stopPropagation();
+  const id=$(this).closest('.q-row').data('id');
+  const q=state.items.find(x=>x._id===id);
+  $(this).parent().hide();
+  openModal(q);
+});
+
+$('#list').on('click','.row-menu .dup',function(e){
+  e.stopPropagation();
+  const id=$(this).closest('.q-row').data('id');
+  const q=state.items.find(x=>x._id===id);
+  const copy=JSON.parse(JSON.stringify(q));
+  delete copy._id;
+  $(this).parent().hide();
+  openModal(copy);
+});
+
+$('#list').on('click','.row-menu .del',async function(e){
+  e.stopPropagation();
+  const id=$(this).closest('.q-row').data('id');
+  if(confirm('Excluir?')){
+    await api('/api/questions/'+id,{method:'DELETE'});
+    const row=$(this).closest('.q-row');
+    row.slideUp(200,()=>{ row.remove(); fetchList(); });
+  }
+});
+
+$(document).on('click',function(){
+  $('.row-menu').hide();
+  $('.overflow').attr('aria-expanded','false');
+});
 
 $('#newBtn').on('click',()=>openModal());
 $('#editorModal').on('click',function(e){ if(e.target===this) closeModal(); });
