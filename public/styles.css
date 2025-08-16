@@ -8,6 +8,7 @@
   --accent-hover:#2563eb;
   --danger:#ef4444;
   --success:#16a34a;
+  --warning:#f59e0b;
   --shadow:0 10px 24px rgba(16,24,40,.06);
   --radius:14px;
 }
@@ -22,6 +23,7 @@
   --accent-hover:#88b6ff;
   --danger:#ff6a6a;
   --success:#19c37d;
+  --warning:#fbbf24;
   --shadow:0 10px 24px rgba(0,0,0,.35);
 }
 
@@ -93,6 +95,8 @@ button:hover{background:var(--accent-hover)}
 button.secondary{background:#f3f4f6; color:#111827; border:1px solid var(--border)}
 :root[data-theme="dark"] button.secondary{background:#0b1220; color:var(--text)}
 button.danger{background:var(--danger)}
+button.success{background:var(--success)}
+button.warning{background:var(--warning)}
 
 .row{display:flex; gap:12px; flex-wrap:wrap; align-items:center;}
 .row.between{justify-content:space-between;}

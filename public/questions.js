@@ -4,6 +4,8 @@ const examId = new URLSearchParams(location.search).get('examId');
 if (!examId) { document.body.innerHTML = '<p class="container">examId obrigatório.</p>'; throw new Error('no examId'); }
 
 let allQuestions = [];
+let currentPage = 1;
+let perPage = 10;
 
 async function loadExam() {
   const data = await api('/api/exams/' + examId);
@@ -49,49 +51,84 @@ async function loadList() {
 function renderList() {
   const term = (document.getElementById('search').value || '').trim().toLowerCase();
   const filtered = term ? allQuestions.filter(q => (q.text || '').toLowerCase().includes(term)) : allQuestions;
-  const box = document.getElementById('list'); box.innerHTML='';
-  if (!filtered.length) {
-    box.innerHTML = `<p class="muted">${allQuestions.length ? 'Nenhuma questão encontrada.' : 'Sem questões.'}</p>`;
-    return;
-  }
-  filtered.forEach(q => {
-    const wrap = document.createElement('div');
-    wrap.className = 'card';
-    const opts = q.options.map((o,i)=>{
-      const parts = [];
-      if (o.text) parts.push(o.text);
-      if (o.imagePath) parts.push('[img]');
-      if (o.isCorrect) parts.push('(correta)');
-      return (i+1) + '. ' + parts.join(' ');
-    }).join('<br/>');
-    wrap.innerHTML = `
-      <div class="row between">
-        <div>
-          <strong>${q.text}</strong> <span class="muted">[${q.type}]</span>
+  const totalPages = Math.ceil(filtered.length / perPage) || 1;
+  if (currentPage > totalPages) currentPage = totalPages;
+  const start = (currentPage - 1) * perPage;
+  const pageItems = filtered.slice(start, start + perPage);
+  const jqBox = $('#list');
+  jqBox.fadeOut(200, () => {
+    const box = document.getElementById('list');
+    box.innerHTML = '';
+    if (!pageItems.length) {
+      box.innerHTML = `<p class="muted">${allQuestions.length ? 'Nenhuma questão encontrada.' : 'Sem questões.'}</p>`;
+      jqBox.fadeIn(200);
+      renderPagination(totalPages);
+      return;
+    }
+    pageItems.forEach(q => {
+      const wrap = document.createElement('div');
+      wrap.className = 'card';
+      const opts = q.options.map((o,i)=>{
+        const parts = [];
+        if (o.text) parts.push(o.text);
+        if (o.imagePath) parts.push('[img]');
+        if (o.isCorrect) parts.push('(correta)');
+        return (i+1) + '. ' + parts.join(' ');
+      }).join('<br/>');
+      wrap.innerHTML = `
+        <div class="row between">
+          <div>
+            <strong>${q.text}</strong> <span class="muted">[${q.type}]</span>
+          </div>
+          <div class="actions">
+            <button data-edit="${q._id}" class="warning">✏️ Editar</button>
+            <button data-del="${q._id}" class="danger">🗑️ Excluir</button>
+          </div>
         </div>
-        <div class="actions">
-          <button data-edit="${q._id}" class="secondary">✏️ Editar</button>
-          <button data-del="${q._id}" class="danger">🗑️ Excluir</button>
-        </div>
-      </div>
-      <div class="muted" style="margin:6px 0">${opts}</div>
-    `;
-    wrap.querySelector('[data-edit]').onclick = () => {
-      document.getElementById('qid').value = q._id;
-      document.getElementById('qtext').value = q.text || '';
-      document.getElementById('qtype').value = q.type || 'single';
-      document.getElementById('opts').innerHTML='';
-      (q.options||[]).forEach(o=> addOptRow(o));
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-    wrap.querySelector('[data-del]').onclick = async () => {
-      if (!confirm('Excluir questão?')) return;
-      await api('/api/questions/' + q._id, { method: 'DELETE' });
-      toast('Questão excluída');
-      loadList();
-    };
-    box.appendChild(wrap);
+        <div class="muted" style="margin:6px 0">${opts}</div>
+      `;
+      wrap.querySelector('[data-edit]').onclick = () => {
+        document.getElementById('qid').value = q._id;
+        document.getElementById('qtext').value = q.text || '';
+        document.getElementById('qtype').value = q.type || 'single';
+        document.getElementById('opts').innerHTML='';
+        (q.options||[]).forEach(o=> addOptRow(o));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+      wrap.querySelector('[data-del]').onclick = async () => {
+        if (!confirm('Excluir questão?')) return;
+        await api('/api/questions/' + q._id, { method: 'DELETE' });
+        toast('Questão excluída');
+        loadList();
+      };
+      box.appendChild(wrap);
+    });
+    jqBox.fadeIn(200);
+    renderPagination(totalPages);
   });
+}
+
+function renderPagination(totalPages) {
+  const box = document.getElementById('pagination');
+  if (totalPages <= 1) { box.innerHTML = ''; return; }
+  box.innerHTML = '';
+  const prev = document.createElement('button');
+  prev.textContent = '◀️';
+  prev.className = 'secondary';
+  prev.disabled = currentPage === 1;
+  prev.onclick = () => { if (currentPage > 1) { currentPage--; renderList(); } };
+  box.appendChild(prev);
+
+  const info = document.createElement('span');
+  info.textContent = `Página ${currentPage} de ${totalPages}`;
+  box.appendChild(info);
+
+  const next = document.createElement('button');
+  next.textContent = '▶️';
+  next.className = 'secondary';
+  next.disabled = currentPage === totalPages;
+  next.onclick = () => { if (currentPage < totalPages) { currentPage++; renderList(); } };
+  box.appendChild(next);
 }
 
 document.getElementById('qForm').onsubmit = async (ev) => {
@@ -119,7 +156,12 @@ document.getElementById('qForm').onsubmit = async (ev) => {
 
 document.getElementById('addOpt').onclick = () => addOptRow();
 document.getElementById('cancel').onclick = resetForm;
-document.getElementById('search').oninput = renderList;
+document.getElementById('search').oninput = () => { currentPage = 1; renderList(); };
+document.getElementById('perPage').onchange = () => {
+  perPage = parseInt(document.getElementById('perPage').value, 10) || 10;
+  currentPage = 1;
+  renderList();
+};
 
 let previewCount = 0;
 document.getElementById('previewReplace').onclick = async () => {
