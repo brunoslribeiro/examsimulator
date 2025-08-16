@@ -6,64 +6,110 @@
   <title>Questões</title>
   <script src="theme-init.js"></script>
   <link rel="stylesheet" href="styles.css" />
+  <style>
+    .q-admin{display:flex;min-height:calc(100vh - 60px);}
+    .q-list{width:45%;max-width:480px;border-right:1px solid var(--border);display:flex;flex-direction:column;}
+    .q-editor{flex:1;padding:20px;overflow:auto;}
+    .list-filters{position:sticky;top:0;z-index:10;background:var(--card);padding:12px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:8px;}
+    .q-list #list{flex:1;overflow:auto;}
+    .q-row{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--border);}
+    .q-row:hover{background:rgba(0,0,0,.03);} 
+    :root[data-theme="dark"] .q-row:hover{background:rgba(255,255,255,.05);} 
+    .q-row .meta{font-size:12px;color:var(--muted);}
+    .bulk-actions{position:sticky;top:56px;z-index:9;padding:8px;background:var(--card);border-bottom:1px solid var(--border);display:flex;gap:6px;}
+    .bulk-actions.hidden{display:none;}
+    .counter{font-size:12px;margin-left:4px;color:var(--muted);} 
+    #pagination{padding:8px;text-align:center;border-top:1px solid var(--border);} 
+    #pagination button{margin:0 4px;}
+    #previewPane{margin-top:20px;}
+  </style>
 </head>
 <body>
   <header id="app-header"></header>
-  <div class="container">
-    <div class="breadcrumb">Administração &rsaquo; Provas &rsaquo; <span id="crumbExam">...</span> &rsaquo; Questões</div>
-    <h1>Questões</h1>
-    <div class="card">
-      <h2>Nova / Editar questão</h2>
+  <div class="q-admin">
+    <aside class="q-list">
+      <div class="list-filters">
+        <input type="text" id="search" placeholder="Pesquisar" />
+        <select id="filterType">
+          <option value="all">Todos</option>
+          <option value="single">Única</option>
+          <option value="multiple">Múltipla</option>
+        </select>
+        <select id="filterStatus">
+          <option value="all">Status</option>
+          <option value="draft">Rascunho</option>
+          <option value="published">Publicado</option>
+        </select>
+        <select id="filterImage">
+          <option value="all">Imagem?</option>
+          <option value="yes">Com</option>
+          <option value="no">Sem</option>
+        </select>
+        <input type="text" id="filterTopic" placeholder="Tópico" />
+        <input type="date" id="filterUpdated" />
+        <select id="sort">
+          <option value="updated">Recentes</option>
+          <option value="alpha">A–Z</option>
+        </select>
+      </div>
+      <div id="bulkActions" class="bulk-actions hidden">
+        <button type="button" id="bulkDelete" class="danger">Excluir</button>
+        <button type="button" id="bulkPublish" class="secondary">Publicar</button>
+        <button type="button" id="bulkUnpublish" class="secondary">Despublicar</button>
+        <button type="button" id="bulkExport" class="secondary">CSV</button>
+        <button type="button" id="bulkReplace" class="secondary">Substituir</button>
+      </div>
+      <div id="list"></div>
+      <div id="pagination"></div>
+    </aside>
+    <main class="q-editor">
       <form id="qForm">
         <input type="hidden" id="qid" />
-        <label>Enunciado <textarea id="qtext" required></textarea></label>
-        <label>Tipo
-          <select id="qtype">
-            <option value="single">Única escolha</option>
-            <option value="multiple">Múltipla escolha</option>
-          </select>
-        </label>
+        <label>Enunciado <textarea id="qtext" required></textarea><span id="qtextCount" class="counter"></span></label>
+        <label>Tópico <input id="qtopic" /></label>
+        <label>Status <select id="qstatus"><option value="draft">Rascunho</option><option value="published">Publicado</option></select></label>
+        <label>Tipo <select id="qtype"><option value="single">Única escolha</option><option value="multiple">Múltipla escolha</option></select></label>
+        <label>Imagem <input type="file" id="qimg" accept="image/*" /></label>
+        <img id="qimgPreview" class="preview" style="display:none" />
         <div id="opts"></div>
+        <div class="row"><button type="button" id="addOpt" class="secondary">➕ Opção</button></div>
         <div class="row">
-          <button type="button" id="addOpt" class="success">➕ Opção</button>
-          <button type="submit">💾 Salvar questão</button>
-          <button type="button" id="cancel" class="danger">✖️ Cancelar edição</button>
+          <button type="submit" id="save">Salvar</button>
+          <button type="button" id="saveNew" class="success">Salvar & Novo</button>
+          <button type="button" id="duplicate" class="secondary">Duplicar</button>
+          <button type="button" id="cancel" class="danger">Cancelar</button>
+          <button type="button" id="preview" class="secondary">Pré-visualizar</button>
         </div>
       </form>
-    </div>
-
-      <div class="card">
-        <h2>Questões cadastradas</h2>
-        <div class="row between">
-          <div id="qCount"></div>
-          <div class="row" style="gap:6px">
-            <label>Por página
-              <select id="perPage">
-                <option value="5">5</option>
-                <option value="10" selected>10</option>
-                <option value="20">20</option>
-              </select>
-            </label>
-            <input type="text" id="search" placeholder="Pesquisar enunciado" />
-          </div>
-        </div>
-        <div id="list"></div>
-        <div id="pagination" class="row" style="justify-content:center;margin-top:12px"></div>
-      </div>
-
-    <div class="card">
+      <div id="previewPane" class="card" style="display:none"></div>
+    </main>
+  </div>
+  <div id="replaceModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-content">
       <h2>Substituir termos</h2>
-      <div class="row" style="gap:6px">
-        <input type="text" id="findTerm" placeholder="Buscar" />
-        <input type="text" id="replaceTerm" placeholder="Substituir por" />
-        <button type="button" id="previewReplace" class="secondary">Pré-visualizar</button>
-        <button type="button" id="applyReplace" class="danger" style="display:none">Confirmar</button>
+      <label>Buscar <input id="repFind" /></label>
+      <label>Substituir <input id="repReplace" /></label>
+      <label>Escopo
+        <select id="repScope">
+          <option value="all">Todas</option>
+          <option value="filtered">Filtradas</option>
+          <option value="selected">Selecionadas</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="repCase" /> Case sensitive</label>
+      <label><input type="checkbox" id="repWhole" /> Whole word</label>
+      <label><input type="checkbox" id="repRegex" /> Regex</label>
+      <div id="repPreview" class="muted" style="max-height:200px;overflow:auto"></div>
+      <div class="row">
+        <button type="button" id="repRun" class="secondary">Pré-visualizar</button>
+        <button type="button" id="repApply" class="danger" style="display:none">Aplicar</button>
+        <button type="button" id="repClose" class="secondary">Fechar</button>
       </div>
-      <div id="replacePreview" class="muted" style="margin-top:8px"></div>
     </div>
   </div>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="common.js"></script>
-    <script src="questions.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="common.js"></script>
+  <script src="questions-utils.js"></script>
+  <script src="questions.js"></script>
 </body>
 </html>

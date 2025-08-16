@@ -182,7 +182,7 @@ app.delete('/api/exams/:id', async (req, res) => {
 // Questions
 app.post('/api/questions', async (req, res) => {
   try {
-    const { examId, text, type, options, imagePath, imageBase64 } = req.body;
+    const { examId, text, type, options, imagePath, imageBase64, topic, status } = req.body;
     if (!examId) return res.status(400).json({ error: 'examId is required' });
     let qImagePath = imagePath || '';
     if (imageBase64) qImagePath = saveBase64Image(imageBase64);
@@ -192,6 +192,8 @@ app.post('/api/questions', async (req, res) => {
       text,
       imagePath: qImagePath,
       type: ['single','multiple'].includes(type) ? type : 'single',
+      topic: topic || '',
+      status: ['draft','published'].includes(status) ? status : 'draft',
       options: parsedOptions.map(o => ({
         text: o.text || '',
         imagePath: o.imageBase64 ? saveBase64Image(o.imageBase64) : (o.imagePath || ''),
@@ -205,15 +207,26 @@ app.post('/api/questions', async (req, res) => {
 });
 
 app.get('/api/questions', async (req, res) => {
-  const { examId } = req.query;
-  const query = examId ? { examId } : {};
-  const list = await Question.find(query).sort({ createdAt: -1 });
+  const { examId, type, status, hasImage, updatedSince, topic, search } = req.query;
+  const query = { deleted: false };
+  if (examId) query.examId = examId;
+  if (type) query.type = type;
+  if (status) query.status = status;
+  if (hasImage === 'yes') query.imagePath = { $ne: '' };
+  if (hasImage === 'no') query.imagePath = { $in: ['', null] };
+  if (updatedSince) query.updatedAt = { $gte: new Date(updatedSince) };
+  if (topic) query.topic = new RegExp(topic, 'i');
+  let list = await Question.find(query).sort({ updatedAt: -1 });
+  if (search) {
+    const term = String(search).toLowerCase();
+    list = list.filter(q => (q.text || '').toLowerCase().includes(term));
+  }
   res.json(list);
 });
 
 app.put('/api/questions/:id', async (req, res) => {
   try {
-    const { text, type, options, imagePath, imageBase64 } = req.body;
+    const { text, type, options, imagePath, imageBase64, topic, status } = req.body;
     let qImagePath = imagePath || '';
     if (imageBase64) qImagePath = saveBase64Image(imageBase64);
     const parsedOptions = Array.isArray(options) ? options : [];
@@ -223,6 +236,8 @@ app.put('/api/questions/:id', async (req, res) => {
         text,
         imagePath: qImagePath,
         type: ['single','multiple'].includes(type) ? type : 'single',
+        topic: topic || '',
+        status: ['draft','published'].includes(status) ? status : 'draft',
         options: parsedOptions.map(o => ({
           text: o.text || '',
           imagePath: o.imageBase64 ? saveBase64Image(o.imageBase64) : (o.imagePath || ''),
@@ -240,9 +255,26 @@ app.put('/api/questions/:id', async (req, res) => {
 
 app.delete('/api/questions/:id', async (req, res) => {
   try {
-    const q = await Question.findByIdAndDelete(req.params.id);
+    const q = await Question.findByIdAndUpdate(req.params.id, { deleted: true });
     if (!q) return res.status(404).json({ error: 'Question not found' });
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/questions/bulk', async (req, res) => {
+  try {
+    const { ids = [], action } = req.body;
+    if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'ids required' });
+    if (action === 'delete') {
+      await Question.updateMany({ _id: { $in: ids } }, { deleted: true });
+    } else if (action === 'publish') {
+      await Question.updateMany({ _id: { $in: ids } }, { status: 'published' });
+    } else if (action === 'unpublish') {
+      await Question.updateMany({ _id: { $in: ids } }, { status: 'draft' });
+    }
+    res.json({ updated: ids.length });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

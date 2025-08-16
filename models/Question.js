@@ -10,6 +10,9 @@ const QuestionSchema = new mongoose.Schema({
   text: { type: String, default: '' },
   imagePath: { type: String, default: '' },
   type: { type: String, enum: ['single','multiple'], default: 'single' },
+  topic: { type: String, default: '' },
+  status: { type: String, enum: ['draft','published'], default: 'draft' },
+  deleted: { type: Boolean, default: false },
   options: { type: [OptionSchema], default: [] }
 }, { timestamps: true });
 
