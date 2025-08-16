@@ -57,7 +57,7 @@
     .exam-footer{position:sticky;bottom:0;height:var(--dock);display:flex;gap:12px;justify-content:flex-end;padding:12px 20px;background:var(--card);border-top:1px solid var(--border);}
     .toast{position:fixed;right:16px;bottom:16px;background:#111827;color:#fff;padding:10px 12px;border-radius:10px;opacity:0;transform:translateY(10px);transition:all .2s;}
     .toast.show{opacity:1;transform:translateY(0);}
-    .pause-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;font-size:32px;color:#fff;z-index:40;}
+    .pause-overlay{position:fixed;left:0;right:0;top:var(--topbar);bottom:var(--dock);background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;font-size:32px;color:#fff;z-index:40;}
     .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:50;}
     .modal.hidden{display:none;}
     .modal-content{background:var(--card);padding:20px;border-radius:12px;box-shadow:0 10px 24px rgba(0,0,0,.35);display:grid;gap:12px;max-width:90%;width:400px;}
@@ -227,7 +227,9 @@
       els.pause.style.display = running ? '' : 'none';
       els.end.style.display = running ? '' : 'none';
       els.pause.textContent = state.status==='PAUSED' ? 'Resume' : 'Pause';
-      els.pauseOverlay.style.display = state.status==='PAUSED' ? 'flex' : 'none';
+      const paused = state.status==='PAUSED';
+      els.pauseOverlay.style.display = paused ? 'flex' : 'none';
+      els.pauseOverlay.setAttribute('aria-hidden', paused ? 'false' : 'true');
       const disable = state.status==='PAUSED';
       Array.from(els.form.querySelectorAll('input[name="opt"]')).forEach(inp=>inp.disabled=disable);
     }
