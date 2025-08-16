@@ -8,25 +8,40 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header id="app-header"></header>
-  <div class="container">
-    <div class="breadcrumb">Administração &rsaquo; Aplicar Prova</div>
-    <h1 id="exam-title" class="exam-title"></h1>
-    <div id="info" class="muted"></div>
-    <div class="card config">
-      <label><input type="checkbox" id="random"> Randomizar perguntas</label>
-      <label>Quantidade de perguntas <input type="number" id="count" min="1" /></label>
-      <label>Tempo máximo (min) <input type="number" id="maxTime" min="1" /></label>
+  <header class="exam-top">
+    <div id="exam-title" class="exam-title"></div>
+    <div class="exam-progress">
+      <div id="progress-text"></div>
+      <div class="progress-bar"><div id="progress-bar"></div></div>
     </div>
-    <div class="row actions">
-      <button type="button" id="start">▶️ Start</button>
-      <button type="button" id="pause">⏸️ Pause</button>
-      <button type="button" id="stop">⏹️ Stop</button>
-      <span id="clock">00:00</span>
+    <div class="exam-controls">
+      <span id="timer" role="timer" aria-live="polite" class="timer">00:00</span>
+      <button type="button" id="start">Start</button>
+      <button type="button" id="pause">Pause</button>
+      <button type="button" id="end">End</button>
     </div>
-    <form id="form"></form>
-    <div id="result"></div>
+  </header>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="filters">
+        <button type="button" class="filter active" data-filter="all">All</button>
+        <button type="button" class="filter" data-filter="blank">Blank</button>
+        <button type="button" class="filter" data-filter="flagged">Flagged</button>
+      </div>
+      <div id="qnums" class="qnums"></div>
+    </aside>
+    <main class="content">
+      <form id="question-form" class="question-card"></form>
+      <div id="result"></div>
+    </main>
   </div>
+  <footer class="exam-footer">
+    <button type="button" id="back">Back</button>
+    <button type="button" id="save-next">Save &amp; Next</button>
+    <button type="button" id="mark">Mark for review</button>
+    <button type="button" id="submit">Submit</button>
+  </footer>
+  <div id="toast" class="toast">Saved just now</div>
   <script src="common.js"></script>
   <script src="take.js"></script>
 </body>

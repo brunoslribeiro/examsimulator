@@ -147,3 +147,39 @@ img.preview{max-height:72px; display:block; margin-top:8px; border-radius:10px; 
   opacity:0; transform:translateY(10px); transition:all .2s;
 }
 .toast.show{opacity:1; transform:translateY(0)}
+/* exam layout */
+.exam-top{
+  position:sticky; top:0; z-index:20;
+  display:flex; align-items:center; justify-content:space-between;
+  gap:16px; padding:12px 20px;
+  background:var(--card); border-bottom:1px solid var(--border);
+  box-shadow:var(--shadow);
+}
+.exam-progress{flex:1; text-align:center; max-width:400px;}
+.progress-bar{height:6px; background:var(--border); border-radius:4px; overflow:hidden;}
+.progress-bar div{height:100%; width:0%; background:var(--accent); transition:width .2s;}
+.timer{font-variant-numeric:tabular-nums; padding:6px 10px; border-radius:20px; border:1px solid var(--border);}
+.layout{display:flex; align-items:flex-start;}
+.sidebar{width:280px; position:sticky; top:70px; align-self:flex-start; padding:16px; display:flex; flex-direction:column; gap:12px;}
+.qnums{display:flex; flex-wrap:wrap; gap:8px;}
+.qnum{width:40px; height:40px; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--text); display:flex; align-items:center; justify-content:center; font-weight:600; cursor:pointer;}
+.qnum.answered{background:var(--accent); color:#fff;}
+.qnum.flagged{border-style:dashed;}
+.qnum.flagged::after{content:'⚑'; font-size:12px; margin-left:2px;}
+.filters{display:flex; gap:6px;}
+.filter{padding:6px 10px; font-size:12px;}
+.filter.active{background:var(--accent); color:#fff;}
+.content{flex:1; padding:20px;}
+.question-card{max-width:65ch; margin:0 auto;}
+.question-card fieldset{border:none; padding:0; margin:0;}
+.question-card legend{font-size:18px; margin-bottom:12px;}
+.option-card{display:flex; align-items:center; gap:12px; padding:14px; border:1px solid var(--border); border-radius:var(--radius); cursor:pointer;}
+.option-card:hover{border-color:var(--accent);}
+.option-card input{margin:0;}
+.option-card:focus-within{outline:3px solid var(--accent); outline-offset:2px;}
+.exam-footer{position:sticky; bottom:0; z-index:20; background:var(--card); border-top:1px solid var(--border); box-shadow:var(--shadow); padding:12px 20px; display:flex; gap:12px; justify-content:flex-end;}
+@media (max-width:768px){
+  .layout{flex-direction:column;}
+  .sidebar{position:static; width:auto; flex-direction:row; overflow-x:auto;}
+}
+.qnum.current{outline:2px solid var(--accent);}
