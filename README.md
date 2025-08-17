@@ -134,6 +134,18 @@ A página `questions.html` possui uma seção **Substituir termos** para facilit
 
 ---
 
+## 🤖 Integração com ChatGPT
+
+O backend possui rotas que utilizam a API do OpenAI para gerar e validar questões automaticamente:
+
+- `POST /api/gpt/generate` – gera novas questões para uma prova a partir de um `prompt` informado.
+- `POST /api/gpt/verify` – verifica se as respostas cadastradas estão corretas segundo o ChatGPT.
+- `POST /api/gpt/explain` – cria uma explicação para a questão caso ainda não exista.
+
+Para usar as rotas é necessário definir a variável de ambiente `OPENAI_API_KEY` com um token válido da API.
+
+---
+
 ## 📝 Variáveis de ambiente
 
 Crie um arquivo `.env` na raiz com:
