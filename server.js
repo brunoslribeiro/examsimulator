@@ -197,6 +197,8 @@ app.post('/api/questions', async (req, res) => {
       options: parsedOptions.map(o => ({
         text: o.text || '',
         imagePath: o.imageBase64 ? saveBase64Image(o.imageBase64) : (o.imagePath || ''),
+        code: o.code || '',
+        language: o.language || '',
         isCorrect: !!o.isCorrect
       }))
     });
@@ -244,6 +246,8 @@ app.put('/api/questions/:id', async (req, res) => {
         options: parsedOptions.map(o => ({
           text: o.text || '',
           imagePath: o.imageBase64 ? saveBase64Image(o.imageBase64) : (o.imagePath || ''),
+          code: o.code || '',
+          language: o.language || '',
           isCorrect: !!o.isCorrect
         }))
       },
@@ -357,7 +361,7 @@ app.post('/api/import/pdf', upload.single('file'), async (req, res) => {
       examId: exam._id,
       text: q.text,
       type: q.answers.length > 1 ? 'multiple' : 'single',
-      options: q.options.map((opt, idx) => ({ text: opt, isCorrect: q.answers.includes(idx) }))
+      options: q.options.map((opt, idx) => ({ text: opt, code: '', language: '', isCorrect: q.answers.includes(idx) }))
     }));
     await Question.insertMany(docs);
     res.json({ imported: docs.length, examId: exam._id });
@@ -391,6 +395,8 @@ app.post('/api/import', async (req, res) => {
             ? q.options.map(o => ({
                 text: o.text || '',
                 imagePath: o.imageBase64 ? saveBase64Image(o.imageBase64) : (o.imagePath || ''),
+                code: o.code || '',
+                language: o.language || '',
                 isCorrect: !!o.isCorrect
               }))
             : []

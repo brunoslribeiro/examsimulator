@@ -115,25 +115,50 @@ function closeModal(){
 }
 
 function addOptRow(data={}){
+  const type = data.code ? 'code' : data.imagePath ? 'image' : 'text';
   const div=$('<div class="opt row"></div>');
-  div.append(`<input class="t" placeholder="Opção" value="${data.text||''}"/>`);
+  const typeSel=$('<select class="type"></select>').append(`
+    <option value="text">Descritiva</option>
+    <option value="image">Imagem</option>
+    <option value="code">Código</option>`);
+  typeSel.val(type);
+  div.append(typeSel);
+  const text=$(`<input class="t" placeholder="Opção" value="${data.text||''}"/>`);
+  const code=$(`<textarea class="code" placeholder="Código">${data.code||''}</textarea>`);
+  const lang=$('<select class="lang"></select>').append(`
+    <option value="">Linguagem</option>
+    <option value="javascript">JavaScript</option>
+    <option value="python">Python</option>
+    <option value="java">Java</option>
+    <option value="c">C</option>
+    <option value="cpp">C++</option>
+    <option value="csharp">C#</option>
+    <option value="php">PHP</option>
+    <option value="ruby">Ruby</option>
+    <option value="go">Go</option>`);
+  lang.val(data.language||'');
   const file=$('<input type="file" class="f" accept="image/*" />');
-  div.append(file);
   const chk=$(`<label>Correta? <input type="checkbox" class="c" ${data.isCorrect?'checked':''}/></label>`);
-  div.append(chk);
   const rm=$('<button type="button" class="danger">✖️</button>').on('click',()=>{div.remove();state.dirty=true;});
-  div.append(rm);
   const img=$('<img class="preview" style="display:none"/>');
-  div.append(img);
+  div.append(text).append(code).append(lang).append(file).append(chk).append(rm).append(img);
   if(data.imagePath){ img.attr('src',data.imagePath).show(); file.data('imagePath',data.imagePath); }
   file.on('change',async function(){ const f=this.files[0]; if(!f) return; const fd=new FormData(); fd.append('file',f); const res=await fetch('/api/upload',{method:'POST',body:fd}).then(r=>r.json()); if(res.path){ file.data('imagePath',res.path); img.attr('src',res.path).show(); toast('Imagem enviada'); } });
+  function update(){ const t=typeSel.val(); text.toggle(t==='text'); code.toggle(t==='code'); lang.toggle(t==='code'); file.toggle(t==='image'); img.toggle(t==='image' && !!file.data('imagePath')); }
+  typeSel.on('change',()=>{ update(); state.dirty=true; });
+  update();
   $('#opts').append(div);
 }
 
 function gatherForm(){
   const options=[];
   $('#opts .opt').each(function(){
-    options.push({ text:$(this).find('.t').val().trim(), imagePath:$(this).find('.f').data('imagePath')||'', isCorrect:$(this).find('.c').prop('checked') });
+    const type=$(this).find('.type').val();
+    const opt={text:'',code:'',language:'',imagePath:'',isCorrect:$(this).find('.c').prop('checked')};
+    if(type==='text') opt.text=$(this).find('.t').val().trim();
+    else if(type==='image') opt.imagePath=$(this).find('.f').data('imagePath')||'';
+    else if(type==='code'){ opt.code=$(this).find('.code').val(); opt.language=$(this).find('.lang').val(); }
+    options.push(opt);
   });
   return { _id:$('#qid').val(), text:$('#qtext').val().trim(), topic:$('#qtopic').val().trim(), status:$('#qstatus').val(), type:$('#qtype').val(), imagePath:$('#qimg').data('imagePath')||'', options };
 }
