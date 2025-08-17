@@ -25,7 +25,8 @@ Frontend em HTML/CSS/JS puro (tema claro/escuro), backend em **Node.js + Express
 │   ├── partials/            # Cabeçalho, rodapé e componentes
 │   ├── styles.css           # Estilos (light/dark)
 │   ├── common.js            # Funções globais e navbar
-│   ├── index.html           # Página inicial / lista de provas
+│   ├── index.html           # Tela inicial com tutorial
+│   ├── admin.html           # Administração / lista de provas
 │   ├── questions.html       # CRUD de questões
 │   └── take.html            # Aplicar prova
 ├── uploads/                 # Arquivos enviados (imagens)
