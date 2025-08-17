@@ -11,35 +11,35 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/plugins/line-numbers.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/plugins/line-numbers.min.js"></script>
 </head>
-<body>
+  <body class="sidebar-hidden">
   <div id="settings-modal" class="modal">
     <form id="settings-form" class="modal-content">
-      <h2>Settings</h2>
-      <label>Number of questions <input type="number" id="set-count" min="1" /></label>
-      <label><input type="checkbox" id="set-random" /> Randomize question order</label>
-      <label><input type="checkbox" id="set-shuffle" /> Shuffle options</label>
-      <label><input type="checkbox" id="set-sidebar" /> Sidebar initially hidden</label>
+        <h2>Configurações</h2>
+        <label>Número de questões <input type="number" id="set-count" min="1" /></label>
+        <label><input type="checkbox" id="set-random" /> Embaralhar ordem das questões</label>
+        <label><input type="checkbox" id="set-shuffle" /> Embaralhar alternativas</label>
+        <label><input type="checkbox" id="set-sidebar" /> Barra lateral inicialmente oculta</label>
       <fieldset>
-        <legend>Feedback mode</legend>
-        <label><input type="radio" name="mode" value="practice" /> Practice (immediate)</label>
-        <label><input type="radio" name="mode" value="exam" checked /> Exam (on submit)</label>
+          <legend>Modo de feedback</legend>
+          <label><input type="radio" name="mode" value="practice" /> Prática (imediato)</label>
+          <label><input type="radio" name="mode" value="exam" checked /> Prova (no envio)</label>
       </fieldset>
-      <button type="submit">Begin</button>
+        <button type="submit">Iniciar</button>
     </form>
   </div>
   <div id="shortcut-help" class="modal hidden" aria-hidden="true">
     <div class="modal-content">
-      <h2>Shortcuts</h2>
+        <h2>Atalhos</h2>
       <ul>
-        <li>↑/↓ navigate options</li>
-        <li>1..9 select option</li>
-        <li>M flag/unflag</li>
-        <li>N next, B back</li>
+          <li>↑/↓ navegar opções</li>
+          <li>1..9 selecionar opção</li>
+          <li>M marcar/desmarcar</li>
+          <li>N próximo, B voltar</li>
       </ul>
-      <button type="button" id="close-help">Close</button>
+        <button type="button" id="close-help">Fechar</button>
     </div>
   </div>
-  <div id="pause-overlay" class="pause-overlay" aria-hidden="true">Paused</div>
+  <div id="pause-overlay" class="pause-overlay" aria-hidden="true">Pausado</div>
   <header class="exam-top">
     <button type="button" id="toggle-sidebar" class="toggle-sidebar">☰</button>
     <div id="exam-title" class="exam-title"></div>
@@ -49,17 +49,18 @@
     </div>
     <div class="exam-controls">
       <span id="timer" role="timer" aria-live="polite" class="timer">00:00</span>
-      <button type="button" id="start">Start</button>
-      <button type="button" id="pause">Pause</button>
-      <button type="button" id="end">End</button>
+        <button type="button" id="start">Iniciar</button>
+        <button type="button" id="pause">Pausar</button>
+        <button type="button" id="end">Encerrar</button>
+        <button type="button" id="exit">Sair</button>
     </div>
   </header>
   <div class="layout">
     <aside class="sidebar">
       <div class="filters">
-        <button type="button" class="filter active" data-filter="all">All</button>
-        <button type="button" class="filter" data-filter="blank">Blank</button>
-        <button type="button" class="filter" data-filter="flagged">Flagged</button>
+        <button type="button" class="filter active" data-filter="all">Todas</button>
+        <button type="button" class="filter" data-filter="blank">Em branco</button>
+        <button type="button" class="filter" data-filter="flagged">Marcadas</button>
       </div>
       <div id="qnums" class="qnums"></div>
     </aside>
@@ -69,12 +70,19 @@
     </main>
   </div>
   <footer class="exam-footer">
-    <button type="button" id="back">Back</button>
-    <button type="button" id="save-next">Save &amp; Next</button>
-    <button type="button" id="mark">Mark for review</button>
-    <button type="button" id="submit">Submit</button>
+      <button type="button" id="back">Voltar</button>
+      <button type="button" id="save-next">Salvar e Próxima</button>
+      <button type="button" id="mark">Marcar para revisão</button>
+      <button type="button" id="submit">Enviar</button>
   </footer>
-  <div id="toast" class="toast" role="status" aria-live="polite">Saved just now</div>
+  <div id="score-modal" class="modal hidden">
+    <div class="modal-content">
+      <p id="score-text"></p>
+      <p id="score-details"></p>
+      <button type="button" id="close-score">Fechar</button>
+    </div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite">Salvo agora</div>
   <script src="common.js"></script>
   <script src="take.js"></script>
 </body>

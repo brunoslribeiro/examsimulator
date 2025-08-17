@@ -41,6 +41,7 @@ const els = {
   start: document.getElementById('start'),
   pause: document.getElementById('pause'),
   end: document.getElementById('end'),
+  exit: document.getElementById('exit'),
   settingsModal: document.getElementById('settings-modal'),
   settingsForm: document.getElementById('settings-form'),
   setCount: document.getElementById('set-count'),
@@ -50,8 +51,18 @@ const els = {
   toggleSidebar: document.getElementById('toggle-sidebar'),
   help: document.getElementById('shortcut-help'),
   closeHelp: document.getElementById('close-help'),
-  pauseOverlay: document.getElementById('pause-overlay')
+  pauseOverlay: document.getElementById('pause-overlay'),
+  scoreModal: document.getElementById('score-modal'),
+  scoreText: document.getElementById('score-text'),
+  scoreDetails: document.getElementById('score-details'),
+  closeScore: document.getElementById('close-score')
 };
+
+function clearExamData(){
+  [answersKey, flaggedKey, idxKey, timeKey, settingsKey].forEach(k=>localStorage.removeItem(k));
+  state.answers={};
+  state.flagged.clear();
+}
 
 function updateTimer(){
   const remaining = Math.max(0, state.duration - state.elapsedSec);
@@ -82,14 +93,21 @@ function pauseTimer(){
 function endTimer(){
   if (state.timer) clearInterval(state.timer);
   state.timer = null; state.started = false; state.paused = true; state.elapsedSec = 0; updateTimer();
-  localStorage.removeItem(timeKey);
+  clearExamData();
   document.body.classList.add('paused');
 }
 
-function showToast(msg='Saved just now'){
+function showToast(msg='Salvo agora'){
   els.toast.textContent = msg;
   els.toast.classList.add('show');
   setTimeout(()=>els.toast.classList.remove('show'), 1500);
+}
+
+function showScore(correct,total){
+  const wrong = total - correct;
+  els.scoreText.textContent = `Pontuação: ${correct}/${total}`;
+  els.scoreDetails.textContent = `Corretas: ${correct} | Erradas: ${wrong}`;
+  els.scoreModal.classList.remove('hidden');
 }
 
 function buildSidebar(){
@@ -131,12 +149,13 @@ function updateProgress(){
 
 function showCorrectness(q){
   const ans = state.answers[q._id];
-  Array.from(els.form.querySelectorAll('.option-card')).forEach((label, idx)=>{
+  Array.from(els.form.querySelectorAll('.option-card, .option-preview')).forEach(label=>{
+    const idx = parseInt(label.dataset.index,10);
     const opt = q.options[idx];
     label.classList.remove('correct','wrong');
-    if(opt.isCorrect) label.classList.add('correct');
+    if(opt && opt.isCorrect) label.classList.add('correct');
     const chosen = Array.isArray(ans) ? ans.includes(idx) : ans === idx;
-    if(chosen && !opt.isCorrect) label.classList.add('wrong');
+    if(chosen && !(opt && opt.isCorrect)) label.classList.add('wrong');
   });
   let exp = els.form.querySelector('.explain');
   if(!exp){ exp = document.createElement('div'); exp.className='explain'; els.form.appendChild(exp); }
@@ -177,10 +196,8 @@ function renderQuestion(){
       const viewer=document.createElement('div'); viewer.className='code-viewer'; viewer.setAttribute('aria-label','Code viewer');
       const pre=document.createElement('pre'); const code=document.createElement('code'); pre.appendChild(code); viewer.appendChild(pre);
       const controls=document.createElement('div'); controls.className='code-controls';
-      const copyBtn=document.createElement('button'); copyBtn.type='button'; copyBtn.textContent='Copy'; copyBtn.title='Copy to clipboard';
-      const wrapBtn=document.createElement('button'); wrapBtn.type='button'; wrapBtn.textContent='Wrap'; wrapBtn.title='Toggle wrap';
-      const fullBtn=document.createElement('button'); fullBtn.type='button'; fullBtn.textContent='Full'; fullBtn.title='Toggle fullscreen';
-      controls.append(copyBtn, wrapBtn, fullBtn); viewer.appendChild(controls);
+      const fullBtn=document.createElement('button'); fullBtn.type='button'; fullBtn.textContent='⛶'; fullBtn.title='Tela cheia';
+      controls.append(fullBtn); viewer.appendChild(controls);
       let currentIdx=null;
 
       function showCode(idx){
@@ -224,18 +241,14 @@ function renderQuestion(){
         q.options.forEach((o,idx)=>list.appendChild(createLabel(o,idx)));
       }
 
-      function toggleWrap(){ viewer.classList.toggle('wrap'); }
       function toggleFull(){ if(!document.fullscreenElement) viewer.requestFullscreen(); else document.exitFullscreen(); }
-      function copyCode(){ if(currentIdx!=null){ navigator.clipboard.writeText(q.options[currentIdx].code||''); showToast('Copied'); } }
-      copyBtn.addEventListener('click', copyCode);
-      wrapBtn.addEventListener('click', toggleWrap);
       fullBtn.addEventListener('click', toggleFull);
       if(window.innerWidth<768) viewer.classList.add('wrap');
       layout.append(list, viewer);
       fs.appendChild(layout);
       let initial=0; const prev=state.answers[q._id]; if(prev!==undefined){ initial=Array.isArray(prev)?prev[0]:prev; }
       showCode(initial);
-      state.viewer={toggleWrap, toggleFull};
+      state.viewer={toggleFull};
     } else {
       q.options.forEach((o, idx)=>{
         const label=document.createElement('label'); label.className='option-card'; label.tabIndex=0; label.dataset.index=idx; label.setAttribute('role','option');
@@ -319,7 +332,13 @@ els.back.addEventListener('click', ()=>{
 
 els.saveNext.addEventListener('click', ()=>{
   saveCurrent();
-  if (state.currentIndex < state.data.questions.length-1){ state.currentIndex++; localStorage.setItem(idxKey,state.currentIndex); renderQuestion(); }
+  if (state.currentIndex < state.data.questions.length-1){
+    state.currentIndex++;
+    localStorage.setItem(idxKey,state.currentIndex);
+    renderQuestion();
+  } else {
+    els.submit.click();
+  }
 });
 
 els.mark.addEventListener('click', ()=>{
@@ -344,21 +363,25 @@ els.submit.addEventListener('click', async ()=>{
       }
     });
   }
-  let msg = `Submit?\nAnswered: ${answered}\nBlank: ${blank}\nFlagged: ${flagged}`;
-  if(state.mode==='practice') msg += `\nCorrect: ${correct}\nWrong: ${wrong}`;
+  let msg = `Enviar?\nRespondidas: ${answered}\nEm branco: ${blank}\nMarcadas: ${flagged}`;
+  if(state.mode==='practice') msg += `\nCorretas: ${correct}\nErradas: ${wrong}`;
   if (!confirm(msg)) return;
   if(state.mode==='exam'){
     const payload = Object.entries(state.answers).map(([id, idx])=>({questionId:id, selectedIndices: Array.isArray(idx)?idx:(idx!=null?[idx]:[])}));
     const res = await api('/api/attempts', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({examId, answers:payload})});
-    els.result.innerHTML = '<div class="card">'+(res.error || `Score: ${res.score.correct}/${res.score.total}`)+'</div>';
+    if(res.error){ els.result.innerHTML = `<div class="card">${res.error}</div>`; return; }
+    showScore(res.score.correct, res.score.total);
   } else {
-    els.result.innerHTML = `<div class="card">Score: ${correct}/${total}</div>`;
+    showScore(correct, total);
   }
+  clearExamData();
 });
 
 els.start.addEventListener('click', startTimer);
 els.pause.addEventListener('click', pauseTimer);
 els.end.addEventListener('click', endTimer);
+els.exit.addEventListener('click', ()=>{ pauseTimer(); saveCurrent(); location.href='/exams.html'; });
+els.closeScore.addEventListener('click', ()=>{ els.scoreModal.classList.add('hidden'); location.href='/exams.html'; });
 
   function handleKey(e){
     if (!state.data) return;
@@ -370,7 +393,6 @@ els.end.addEventListener('click', endTimer);
     else if (e.key === 'Enter'){ const opt=document.activeElement.closest('.option-preview, .option-card'); if(opt){ const inp=opt.querySelector('input'); if(inp){ if(q.type==='multiple') inp.checked=!inp.checked; else inp.checked=true; inp.dispatchEvent(new Event('change',{bubbles:true})); } } }
     else if (e.key === ' '){ const opt=document.activeElement.closest('.option-preview'); if(opt){ e.preventDefault(); opt.classList.toggle('expanded'); } }
     else if (e.key.toLowerCase()==='f' && state.viewer){ e.preventDefault(); state.viewer.toggleFull(); }
-    else if (e.key.toLowerCase()==='w' && state.viewer){ e.preventDefault(); state.viewer.toggleWrap(); }
     else if (e.key.toLowerCase()==='m'){ els.mark.click(); }
     else if (e.key.toLowerCase()==='n'){ els.saveNext.click(); }
     else if (e.key.toLowerCase()==='b'){ els.back.click(); }
