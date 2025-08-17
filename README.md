@@ -111,7 +111,7 @@ Form-data:
 
 O retorno contém a quantidade de questões importadas e o `examId` utilizado.
 
-Também existe uma interface web em `/import-pdf.html`, acessível pelo menu **Importar PDF**, para realizar a importação pelo navegador.
+Também existe uma interface web em `/import.html`, acessível pelo menu **Importar**, para realizar a importação via PDF ou JSON pelo navegador.
 
 ## 🔄 Substituição de termos nos enunciados
 

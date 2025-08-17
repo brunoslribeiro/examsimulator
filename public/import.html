@@ -10,25 +10,56 @@
 <body>
   <header id="app-header"></header>
   <div class="container">
-    <div class="breadcrumb">Administração &rsaquo; Importar JSON</div>
+    <div class="breadcrumb">Administração &rsaquo; Importar</div>
     <h1>Importar Provas</h1>
     <div class="card">
       <h2>Arquivo JSON</h2>
-      <form id="importForm">
+      <form id="jsonForm">
         <label>Selecione o arquivo
           <input type="file" id="jsonFile" accept="application/json" required />
         </label>
         <button type="submit">Importar</button>
       </form>
-      <div id="result" class="muted" style="margin-top:8px"></div>
+      <div id="jsonResult" class="muted" style="margin-top:8px"></div>
       <details style="margin-top:16px">
         <summary>Ver exemplo de JSON</summary>
         <pre id="sampleJson" style="overflow:auto; max-height:200px"></pre>
         <a href="sample-import.json" download class="muted">Baixar exemplo</a>
       </details>
     </div>
+
+    <div class="card">
+      <h2>Arquivo PDF</h2>
+      <form id="pdfForm">
+        <label>Selecione o arquivo
+          <input type="file" id="pdfFile" accept="application/pdf" required />
+        </label>
+        <label>Prova existente
+          <select id="examSelect">
+            <option value="">-- Nova prova --</option>
+          </select>
+        </label>
+        <label>Modelo de parser
+          <select id="template">
+            <option value="default">Padrão</option>
+            <option value="flex">Flexível</option>
+          </select>
+        </label>
+        <div id="newExam">
+          <label>Título
+            <input id="title" />
+          </label>
+          <label>Descrição
+            <textarea id="description"></textarea>
+          </label>
+        </div>
+        <button type="submit">Importar</button>
+      </form>
+      <div id="pdfResult" class="muted" style="margin-top:8px"></div>
+    </div>
   </div>
   <script src="common.js"></script>
   <script src="import.js"></script>
+  <script src="import-pdf.js"></script>
 </body>
 </html>

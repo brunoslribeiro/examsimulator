@@ -4,7 +4,7 @@ const examSelect = document.getElementById('examSelect');
 const newExamDiv = document.getElementById('newExam');
 const titleInput = document.getElementById('title');
 const descInput = document.getElementById('description');
-const resultBox = document.getElementById('result');
+const resultBox = document.getElementById('pdfResult');
 const templateSelect = document.getElementById('template');
 
 async function loadExams() {

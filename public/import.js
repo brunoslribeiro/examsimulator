@@ -1,6 +1,6 @@
-const form = document.getElementById('importForm');
+const form = document.getElementById('jsonForm');
 const fileInput = document.getElementById('jsonFile');
-const resultBox = document.getElementById('result');
+const resultBox = document.getElementById('jsonResult');
 const sampleBox = document.getElementById('sampleJson');
 
 if (sampleBox) {
