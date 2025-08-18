@@ -460,10 +460,6 @@ app.post('/api/gpt/verify', async (req, res) => {
     const expected = q.options.map((o, idx) => (o.isCorrect ? idx : -1)).filter(i => i >= 0);
     const gpt = Array.isArray(data.correctIndices) ? data.correctIndices : [];
     const matches = expected.length === gpt.length && expected.every(i => gpt.includes(i));
-    if (!q.explanation && data.explanation) {
-      q.explanation = data.explanation;
-      await q.save();
-    }
     res.json({ matches, expected, gpt });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -490,9 +486,23 @@ app.post('/api/gpt/explain', async (req, res) => {
       ]
     });
     const explanation = completion.choices[0].message.content.trim();
-    q.explanation = explanation;
-    await q.save();
     res.json({ explanation });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Update explanation field
+app.put('/api/questions/:id/explanation', async (req, res) => {
+  try {
+    const { explanation } = req.body;
+    const q = await Question.findByIdAndUpdate(
+      req.params.id,
+      { explanation: explanation || '' },
+      { new: true }
+    );
+    if (!q) return res.status(404).json({ error: 'Question not found' });
+    res.json({ explanation: q.explanation });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

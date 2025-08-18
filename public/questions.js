@@ -6,6 +6,7 @@ let gptEnabled = false;
 const state = { q:'', topic:'', status:'', hasImage:'', since:'', sort:'recent', page:1, total:0, items:[], dirty:false };
 let currentReq = null;
 let lastFocus = null;
+let currentExpId = null;
 
 async function checkGpt(){
   try {
@@ -257,18 +258,23 @@ $('#list').on('click','.row-menu .del',async function(e){
 $('#list').on('click','.row-menu .verify',async function(e){
   e.stopPropagation();
   const id=$(this).closest('.q-row').data('id');
+  const q=state.items.find(x=>x._id===id);
   const res=await api('/api/gpt/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionId:id})});
-  toast(res.matches?'Respostas conferem':'Possível erro nas respostas');
+  $('#verifyQuestion').text(q.text||'');
+  $('#verifyResult').text(res.matches?'Respostas conferem':'Possível erro nas respostas');
+  $('#verifyDetails').text(`Esperado: ${res.expected.join(', ')} | GPT: ${res.gpt.join(', ')}`);
+  $('#verifyModal').addClass('open').attr('aria-hidden','false');
+  $('body').addClass('modal-open');
 });
 
 $('#list').on('click','.row-menu .explain',async function(e){
   e.stopPropagation();
   const id=$(this).closest('.q-row').data('id');
   const res=await api('/api/gpt/explain',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionId:id})});
-  $('#expText').text(res.explanation||'');
+  currentExpId=id;
+  $('#expText').val(res.explanation||'');
   $('#expModal').addClass('open').attr('aria-hidden','false');
   $('body').addClass('modal-open');
-  fetchList();
 });
 
 $(document).on('click',function(){
@@ -303,8 +309,20 @@ $('#gptForm').on('submit',async function(e){
   $('#cancelGpt').click();
   fetchList();
 });
-$('#closeExp').on('click',function(){ $('#expModal').removeClass('open').attr('aria-hidden','true'); $('body').removeClass('modal-open'); });
+$('#saveExp').on('click',async function(){
+  if(!currentExpId) return;
+  const explanation=$('#expText').val().trim();
+  await api(`/api/questions/${currentExpId}/explanation`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({explanation})});
+  toast('Explicação salva');
+  currentExpId=null;
+  $('#expModal').removeClass('open').attr('aria-hidden','true');
+  $('body').removeClass('modal-open');
+  fetchList();
+});
+$('#closeExp').on('click',function(){ currentExpId=null; $('#expModal').removeClass('open').attr('aria-hidden','true'); $('body').removeClass('modal-open'); });
 $('#expModal').on('click',function(e){ if(e.target===this) $('#closeExp').click(); });
+$('#closeVerify').on('click',function(){ $('#verifyModal').removeClass('open').attr('aria-hidden','true'); $('body').removeClass('modal-open'); });
+$('#verifyModal').on('click',function(e){ if(e.target===this) $('#closeVerify').click(); });
 
 $(async function(){
   loadFromQuery();

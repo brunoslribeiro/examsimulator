@@ -139,7 +139,7 @@ A página `questions.html` possui uma seção **Substituir termos** para facilit
 Quando a chave da API do OpenAI está configurada e a conexão com o serviço está funcionando, a aplicação exibe ações adicionais nas telas de questões. A chave pode ser definida pela variável de ambiente `OPENAI_API_KEY` ou pela tela **Configurações** (`settings.html`).
 
 - Botão **Gerar via GPT** para criar perguntas a partir de um prompt, disponível em `questions.html`.
-- Opções **Verificar GPT** e **Explicar GPT** no menu de cada questão.
+- Opções **Verificar GPT** e **Explicar GPT** no menu de cada questão. A verificação abre um popup com o resultado e a explicação pode ser revisada antes de ser salva.
 
 O backend expõe as rotas:
 
@@ -148,7 +148,8 @@ O backend expõe as rotas:
 - `POST /api/gpt/key` – atualiza a chave de API usada pelo serviço.
 - `POST /api/gpt/generate` – gera novas questões para uma prova a partir de um `prompt` informado.
 - `POST /api/gpt/verify` – verifica se as respostas cadastradas estão corretas segundo o ChatGPT.
-- `POST /api/gpt/explain` – cria uma explicação para a questão caso ainda não exista.
+- `POST /api/gpt/explain` – gera uma sugestão de explicação para a questão.
+- `PUT /api/questions/:id/explanation` – atualiza o campo de explicação de uma questão.
 
 As funcionalidades são exibidas apenas quando o serviço retorna habilitado.
 

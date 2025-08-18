@@ -109,8 +109,21 @@
   <div id="expModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-content">
       <h3>Explicação</h3>
-      <p id="expText"></p>
-      <div class="row"><button type="button" id="closeExp">Fechar</button></div>
+      <textarea id="expText" style="width:100%;min-height:120px"></textarea>
+      <div class="row">
+        <button type="button" id="saveExp">Salvar</button>
+        <button type="button" id="closeExp" class="danger">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="verifyModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-content">
+      <h3>Verificação GPT</h3>
+      <p id="verifyQuestion" class="meta"></p>
+      <p id="verifyResult"></p>
+      <p id="verifyDetails" class="meta"></p>
+      <div class="row"><button type="button" id="closeVerify">Fechar</button></div>
     </div>
   </div>
 
