@@ -5,14 +5,33 @@ const mongoose = require('mongoose');
 const multer = require('multer');
 const cors = require('cors');
 const pdfParse = require('pdf-parse');
-let openai = null;
+
+let OpenAI = null;
 try {
-  const OpenAI = require('openai');
-  if (process.env.OPENAI_API_KEY) {
-    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  }
+  OpenAI = require('openai');
 } catch (e) {
   console.warn('OpenAI not available:', e.message);
+}
+
+// Persisted configuration for the server
+const CONFIG_FILE = path.join(__dirname, 'config.json');
+let openaiApiKey = '';
+try {
+  const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+  openaiApiKey = cfg.openaiApiKey || '';
+} catch (_) {
+  openaiApiKey = '';
+}
+if (!openaiApiKey && process.env.OPENAI_API_KEY) {
+  openaiApiKey = process.env.OPENAI_API_KEY;
+}
+
+let openai = OpenAI && openaiApiKey ? new OpenAI({ apiKey: openaiApiKey }) : null;
+
+function setOpenAiKey(key) {
+  openaiApiKey = key;
+  openai = OpenAI && key ? new OpenAI({ apiKey: key }) : null;
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify({ openaiApiKey: openaiApiKey }, null, 2));
 }
 
 // --- Config ---
@@ -348,6 +367,16 @@ app.post('/api/questions/replace', async (req, res) => {
 
 
 // --- ChatGPT integrations ---
+app.get('/api/gpt/key', (req, res) => {
+  res.json({ hasKey: !!openaiApiKey });
+});
+
+app.post('/api/gpt/key', (req, res) => {
+  const { key } = req.body || {};
+  setOpenAiKey(key || '');
+  res.json({ hasKey: !!openaiApiKey });
+});
+
 app.get('/api/gpt/enabled', async (req, res) => {
   if (!openai) return res.json({ enabled: false });
   try {

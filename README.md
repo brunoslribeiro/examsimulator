@@ -136,7 +136,7 @@ A página `questions.html` possui uma seção **Substituir termos** para facilit
 
 ## 🤖 Integração com ChatGPT
 
-Quando a variável de ambiente `OPENAI_API_KEY` está definida e a conexão com o serviço está funcionando, a aplicação exibe ações adicionais nas telas de questões:
+Quando a chave da API do OpenAI está configurada e a conexão com o serviço está funcionando, a aplicação exibe ações adicionais nas telas de questões. A chave pode ser definida pela variável de ambiente `OPENAI_API_KEY` ou pela tela **Configurações** (`settings.html`).
 
 - Botão **Gerar via GPT** para criar perguntas a partir de um prompt, disponível em `questions.html`.
 - Opções **Verificar GPT** e **Explicar GPT** no menu de cada questão.
@@ -144,11 +144,15 @@ Quando a variável de ambiente `OPENAI_API_KEY` está definida e a conexão com 
 O backend expõe as rotas:
 
 - `GET /api/gpt/enabled` – indica se o serviço está configurado e acessível.
+- `GET /api/gpt/key` – informa se uma chave de API está configurada.
+- `POST /api/gpt/key` – atualiza a chave de API usada pelo serviço.
 - `POST /api/gpt/generate` – gera novas questões para uma prova a partir de um `prompt` informado.
 - `POST /api/gpt/verify` – verifica se as respostas cadastradas estão corretas segundo o ChatGPT.
 - `POST /api/gpt/explain` – cria uma explicação para a questão caso ainda não exista.
 
 As funcionalidades são exibidas apenas quando o serviço retorna habilitado.
+
+A chave fornecida pela tela de configuração é persistida em `config.json` na raiz do projeto.
 
 ---
 
