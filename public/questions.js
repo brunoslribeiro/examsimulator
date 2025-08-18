@@ -13,7 +13,7 @@ async function checkGpt(){
     const res = await fetch('/api/gpt/enabled').then(r=>r.json());
     if(res.enabled){
       gptEnabled = true;
-      $('#gptGenBtn').show();
+      $('#gptGenBtn, #gptVerifySelBtn').show();
       if(state.items.length) $('#list').html(renderList(state.items, state.q, gptEnabled));
     }
   } catch(e){}
@@ -265,6 +265,7 @@ $('#list').on('click','.row-menu .verify',async function(e){
   $('#verifyDetails').text(`Esperado: ${res.expected.join(', ')} | GPT: ${res.gpt.join(', ')}`);
   $('#verifyModal').addClass('open').attr('aria-hidden','false');
   $('body').addClass('modal-open');
+  fetchList();
 });
 
 $('#list').on('click','.row-menu .explain',async function(e){
@@ -307,6 +308,13 @@ $('#gptForm').on('submit',async function(e){
   const res=await api('/api/gpt/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({examId,prompt,count})});
   if(res.created) toast('Geradas '+res.created+' questões');
   $('#cancelGpt').click();
+  fetchList();
+});
+$('#gptVerifySelBtn').on('click',async function(){
+  const ids=$('#list .sel:checked').map((i,el)=>$(el).closest('.q-row').data('id')).get();
+  if(!ids.length){ alert('Selecione ao menos uma questão'); return; }
+  await api('/api/gpt/verify/bulk',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionIds:ids})});
+  toast('Verificação concluída');
   fetchList();
 });
 $('#saveExp').on('click',async function(){

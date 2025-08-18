@@ -456,11 +456,84 @@ app.post('/api/gpt/verify', async (req, res) => {
       ],
       response_format: { type: 'json_object' }
     });
-    const data = JSON.parse(completion.choices[0].message.content || '{}');
+    let data = {};
+    try {
+      data = JSON.parse(completion.choices[0].message.content || '{}');
+    } catch (e) {}
     const expected = q.options.map((o, idx) => (o.isCorrect ? idx : -1)).filter(i => i >= 0);
     const gpt = Array.isArray(data.correctIndices) ? data.correctIndices : [];
     const matches = expected.length === gpt.length && expected.every(i => gpt.includes(i));
-    res.json({ matches, expected, gpt });
+    const status = Array.isArray(data.correctIndices)
+      ? matches
+        ? 'correct'
+        : 'invalid'
+      : 'uncertain';
+    await Question.findByIdAndUpdate(questionId, {
+      gptStatus: status,
+      gptResponse: JSON.stringify(data)
+    });
+    res.json({ matches, expected, gpt, status });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Verify multiple questions and store GPT evaluation
+app.post('/api/gpt/verify/bulk', async (req, res) => {
+  try {
+    if (!openai) return res.status(503).json({ error: 'GPT not configured' });
+    const { questionIds } = req.body;
+    if (!Array.isArray(questionIds) || !questionIds.length) {
+      return res.status(400).json({ error: 'questionIds required' });
+    }
+    const results = [];
+    for (const id of questionIds) {
+      const q = await Question.findById(id);
+      if (!q) continue;
+      const prompt = `Question: ${q.text}\nOptions:\n${q.options
+        .map((o, i) => `${i + 1}. ${o.text}`)
+        .join('\n')}`;
+      try {
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content:
+                'Given a multiple choice question, respond with JSON {correctIndices:[number], explanation:string} where indices are 0-based.'
+            },
+            { role: 'user', content: prompt }
+          ],
+          response_format: { type: 'json_object' }
+        });
+        let data = {};
+        try {
+          data = JSON.parse(completion.choices[0].message.content || '{}');
+        } catch (e) {}
+        const expected = q.options
+          .map((o, idx) => (o.isCorrect ? idx : -1))
+          .filter(i => i >= 0);
+        const gpt = Array.isArray(data.correctIndices) ? data.correctIndices : [];
+        const matches = expected.length === gpt.length && expected.every(i => gpt.includes(i));
+        const status = Array.isArray(data.correctIndices)
+          ? matches
+            ? 'correct'
+            : 'invalid'
+          : 'uncertain';
+        await Question.findByIdAndUpdate(id, {
+          gptStatus: status,
+          gptResponse: JSON.stringify(data)
+        });
+        results.push({ questionId: id, status, matches, expected, gpt });
+      } catch (err) {
+        await Question.findByIdAndUpdate(id, {
+          gptStatus: 'uncertain',
+          gptResponse: err.message
+        });
+        results.push({ questionId: id, status: 'uncertain', matches: false, expected: [], gpt: [] });
+      }
+    }
+    res.json({ results });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

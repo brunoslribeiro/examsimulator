@@ -140,6 +140,7 @@ Quando a chave da API do OpenAI está configurada e a conexão com o serviço es
 
 - Botão **Gerar via GPT** para criar perguntas a partir de um prompt, disponível em `questions.html`.
 - Opções **Verificar GPT** e **Explicar GPT** no menu de cada questão. A verificação abre um popup com o resultado e a explicação pode ser revisada antes de ser salva.
+- Cada questão passa a exibir o status de verificação pelo ChatGPT (✅ correta, ❌ inválida, ❓ incerta) e permite seleção para verificação em massa.
 
 O backend expõe as rotas:
 
@@ -148,6 +149,7 @@ O backend expõe as rotas:
 - `POST /api/gpt/key` – atualiza a chave de API usada pelo serviço.
 - `POST /api/gpt/generate` – gera novas questões para uma prova a partir de um `prompt` informado.
 - `POST /api/gpt/verify` – verifica se as respostas cadastradas estão corretas segundo o ChatGPT.
+- `POST /api/gpt/verify/bulk` – realiza a verificação de várias questões ao mesmo tempo e armazena o retorno do GPT.
 - `POST /api/gpt/explain` – gera uma sugestão de explicação para a questão.
 - `PUT /api/questions/:id/explanation` – atualiza o campo de explicação de uma questão.
 
