@@ -75,7 +75,8 @@ function fetchList(){
         $('#retry').on('click',e=>{ e.preventDefault(); fetchList(); });
         toast('Erro ao carregar');
       }
-    });
+    })
+    .always(()=>{ currentReq = null; });
 }
 
 function renderPagination(){
@@ -201,10 +202,6 @@ async function saveQuestion(andNew){
 }
 
 // Events
-checkGpt();
-loadFromQuery();
-updateQuery();
-fetchList();
 
 $('#search').on('input', debounce(function(){ state.q=this.value; state.page=1; updateQuery(); fetchList(); },300));
 $('#search').on('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); state.q=this.value; state.page=1; updateQuery(); fetchList(); }});
@@ -308,6 +305,13 @@ $('#gptForm').on('submit',async function(e){
 });
 $('#closeExp').on('click',function(){ $('#expModal').removeClass('open').attr('aria-hidden','true'); $('body').removeClass('modal-open'); });
 $('#expModal').on('click',function(e){ if(e.target===this) $('#closeExp').click(); });
+
+$(async function(){
+  loadFromQuery();
+  updateQuery();
+  await checkGpt();
+  fetchList();
+});
 
 // keyboard shortcuts
 $(document).on('keydown',function(e){
