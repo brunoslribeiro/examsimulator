@@ -400,11 +400,11 @@ app.post('/api/gpt/generate', async (req, res) => {
         {
           role: 'system',
           content:
-            'You generate multiple choice exam questions and return JSON {questions:[{text,type,options:[{text,code,language,isCorrect}],explanation}]}'
+            'You are an exam question generator. Produce a mix of plain multiple choice questions and programming questions when relevant. Return JSON {questions:[{text,type,options:[{text,code,language,isCorrect}],explanation}]}. Every option must include non-empty "text" and only provide "code"/"language" when a code snippet is present.'
         },
         {
           role: 'user',
-          content: `Create ${count} questions about ${prompt}. Include programming topics when appropriate.`
+          content: `Create ${count} diverse questions about ${prompt}. Ensure several are standard text questions. Provide four meaningful options for each question and avoid placeholder values like "A" or "B".`
         }
       ],
       response_format: { type: 'json_object' }
@@ -417,12 +417,20 @@ app.post('/api/gpt/generate', async (req, res) => {
         text: q.text || '',
         type: ['single', 'multiple'].includes(q.type) ? q.type : 'single',
         options: Array.isArray(q.options)
-          ? q.options.map(o => ({
-              text: o.text || '',
-              code: o.code || '',
-              language: o.language || '',
-              isCorrect: !!o.isCorrect
-            }))
+          ? q.options.map(o => {
+              let text = o.text || '';
+              let code = o.code || '';
+              if (!text && code && /^[A-D]$/i.test(code.trim())) {
+                text = code.trim();
+                code = '';
+              }
+              return {
+                text,
+                code,
+                language: o.language || '',
+                isCorrect: !!o.isCorrect
+              };
+            })
           : [],
         explanation: q.explanation || ''
       }))
