@@ -5,8 +5,15 @@ const mongoose = require('mongoose');
 const multer = require('multer');
 const cors = require('cors');
 const pdfParse = require('pdf-parse');
-const OpenAI = require('openai');
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let openai = null;
+try {
+  const OpenAI = require('openai');
+  if (process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+} catch (e) {
+  console.warn('OpenAI not available:', e.message);
+}
 
 // --- Config ---
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017/examdb';
@@ -341,9 +348,19 @@ app.post('/api/questions/replace', async (req, res) => {
 
 
 // --- ChatGPT integrations ---
+app.get('/api/gpt/enabled', async (req, res) => {
+  if (!openai) return res.json({ enabled: false });
+  try {
+    await openai.models.list({ limit: 1 });
+    res.json({ enabled: true });
+  } catch (e) {
+    res.json({ enabled: false });
+  }
+});
 // Generate new questions for an exam using OpenAI
 app.post('/api/gpt/generate', async (req, res) => {
   try {
+    if (!openai) return res.status(503).json({ error: 'GPT not configured' });
     const { examId, prompt, count = 5 } = req.body;
     if (!examId || !prompt) {
       return res.status(400).json({ error: 'examId and prompt required' });
@@ -390,6 +407,7 @@ app.post('/api/gpt/generate', async (req, res) => {
 // Verify a question's answers using OpenAI
 app.post('/api/gpt/verify', async (req, res) => {
   try {
+    if (!openai) return res.status(503).json({ error: 'GPT not configured' });
     const { questionId } = req.body;
     if (!questionId) return res.status(400).json({ error: 'questionId required' });
     const q = await Question.findById(questionId);
@@ -426,6 +444,7 @@ app.post('/api/gpt/verify', async (req, res) => {
 // Generate or return an explanation for a question
 app.post('/api/gpt/explain', async (req, res) => {
   try {
+    if (!openai) return res.status(503).json({ error: 'GPT not configured' });
     const { questionId } = req.body;
     if (!questionId) return res.status(400).json({ error: 'questionId required' });
     const q = await Question.findById(questionId);

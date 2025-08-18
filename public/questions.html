@@ -65,6 +65,7 @@
       <div class="search-bar">
         <input type="text" id="search" placeholder="Pesquisar" aria-label="Pesquisar" />
         <button id="newBtn" type="button">Nova questão</button>
+        <button id="gptGenBtn" type="button" style="display:none">Gerar via GPT</button>
       </div>
       <div id="list"></div>
       <div id="pagination" class="search-bar" style="justify-content:center;"></div>
@@ -89,6 +90,27 @@
           <button type="button" id="cancel" class="danger">Cancelar</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="gptModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-content">
+      <form id="gptForm">
+        <label>Assunto <input id="gptPrompt" required /></label>
+        <label>Quantidade <input type="number" id="gptCount" value="5" min="1" max="20" /></label>
+        <div class="row">
+          <button type="submit">Gerar</button>
+          <button type="button" id="cancelGpt" class="danger">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="expModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-content">
+      <h3>Explicação</h3>
+      <p id="expText"></p>
+      <div class="row"><button type="button" id="closeExp">Fechar</button></div>
     </div>
   </div>
 

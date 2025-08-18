@@ -15,11 +15,15 @@
     return text.replace(re,'<mark>$1</mark>');
   }
 
-  function renderList(items, q=''){
+  function renderList(items, q='', gpt=false){
     return items.map(it=>{
       const icons = [it.imagePath?'📷':'', it.type==='multiple'?'🔢':''].filter(Boolean).join('');
       const snippet = highlight((it.text||'').slice(0,80), q);
       const meta = `${it.topic||''} • ${it.status} • ${new Date(it.updatedAt).toLocaleDateString()}`;
+      const gptMenu = gpt ?
+        `<button class="verify" role="menuitem">Verificar GPT</button>` +
+        (!it.explanation?`<button class="explain" role="menuitem">Explicar GPT</button>`:'')
+        : '';
       return `<div class="q-row" data-id="${it._id}" style="display:none">`
         +`<div class="snippet">${snippet}</div>`
         +`<div class="meta">${meta} ${icons}</div>`
@@ -28,6 +32,7 @@
         +`<button class="edit" role="menuitem">Editar</button>`
         +`<button class="dup" role="menuitem">Duplicar</button>`
         +`<button class="del" role="menuitem">Excluir</button>`
+        + gptMenu
         +`</div>`
         +`</div>`;
     }).join('');

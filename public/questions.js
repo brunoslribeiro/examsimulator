@@ -2,9 +2,21 @@ const api = (u,o={})=>fetch(u,o).then(r=>r.json());
 const examId = new URLSearchParams(location.search).get('examId');
 if(!examId){ document.body.innerHTML='<p class="container">examId obrigatório.</p>'; throw new Error('no examId'); }
 
+let gptEnabled = false;
 const state = { q:'', topic:'', status:'', hasImage:'', since:'', sort:'recent', page:1, total:0, items:[], dirty:false };
 let currentReq = null;
 let lastFocus = null;
+
+async function checkGpt(){
+  try {
+    const res = await fetch('/api/gpt/enabled').then(r=>r.json());
+    if(res.enabled){
+      gptEnabled = true;
+      $('#gptGenBtn').show();
+      if(state.items.length) $('#list').html(renderList(state.items, state.q, gptEnabled));
+    }
+  } catch(e){}
+}
 
 function loadFromQuery(){
   const p = new URLSearchParams(location.search);
@@ -53,7 +65,7 @@ function fetchList(){
       state.items = res.items || [];
       state.total = res.total || 0;
       if(!state.items.length){ $('#list').html('<p class="empty">Nenhum resultado.</p>'); renderPagination(); return; }
-      $('#list').html(renderList(state.items, state.q));
+      $('#list').html(renderList(state.items, state.q, gptEnabled));
       $('#list .q-row').each(function(i){ $(this).delay(i*30).fadeIn(200); });
       renderPagination();
     })
@@ -189,6 +201,7 @@ async function saveQuestion(andNew){
 }
 
 // Events
+checkGpt();
 loadFromQuery();
 updateQuery();
 fetchList();
@@ -244,6 +257,23 @@ $('#list').on('click','.row-menu .del',async function(e){
   }
 });
 
+$('#list').on('click','.row-menu .verify',async function(e){
+  e.stopPropagation();
+  const id=$(this).closest('.q-row').data('id');
+  const res=await api('/api/gpt/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionId:id})});
+  toast(res.matches?'Respostas conferem':'Possível erro nas respostas');
+});
+
+$('#list').on('click','.row-menu .explain',async function(e){
+  e.stopPropagation();
+  const id=$(this).closest('.q-row').data('id');
+  const res=await api('/api/gpt/explain',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionId:id})});
+  $('#expText').text(res.explanation||'');
+  $('#expModal').addClass('open').attr('aria-hidden','false');
+  $('body').addClass('modal-open');
+  fetchList();
+});
+
 $(document).on('click',function(){
   $('.row-menu').hide();
   $('.overflow').attr('aria-expanded','false');
@@ -259,6 +289,25 @@ $('#qForm').on('change input',()=>{ state.dirty=true; });
 $('#qimg').on('change',async function(){ const f=this.files[0]; if(!f) return; const fd=new FormData(); fd.append('file',f); const res=await fetch('/api/upload',{method:'POST',body:fd}).then(r=>r.json()); if(res.path){ $(this).data('imagePath',res.path); $('#qimgPreview').attr('src',res.path).show(); } });
 $('#removeImg').on('click',function(){ $('#qimg').removeData('imagePath'); $('#qimgPreview').hide().attr('src',''); });
 $('#qtext').on('input',function(){ $('#qtextCount').text(this.value.length); });
+
+$('#gptGenBtn').on('click',function(){
+  $('#gptModal').addClass('open').attr('aria-hidden','false');
+  $('body').addClass('modal-open');
+  $('#gptPrompt').focus();
+});
+$('#cancelGpt').on('click',function(){ $('#gptForm')[0].reset(); $('#gptModal').removeClass('open').attr('aria-hidden','true'); $('body').removeClass('modal-open'); });
+$('#gptModal').on('click',function(e){ if(e.target===this) $('#cancelGpt').click(); });
+$('#gptForm').on('submit',async function(e){
+  e.preventDefault();
+  const prompt=$('#gptPrompt').val().trim();
+  const count=parseInt($('#gptCount').val(),10)||5;
+  const res=await api('/api/gpt/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({examId,prompt,count})});
+  if(res.created) toast('Geradas '+res.created+' questões');
+  $('#cancelGpt').click();
+  fetchList();
+});
+$('#closeExp').on('click',function(){ $('#expModal').removeClass('open').attr('aria-hidden','true'); $('body').removeClass('modal-open'); });
+$('#expModal').on('click',function(e){ if(e.target===this) $('#closeExp').click(); });
 
 // keyboard shortcuts
 $(document).on('keydown',function(e){
