@@ -138,7 +138,7 @@ A página `questions.html` possui uma seção **Substituir termos** para facilit
 
 Quando a chave da API do OpenAI está configurada e a conexão com o serviço está funcionando, a aplicação exibe ações adicionais nas telas de questões. A chave pode ser definida pela variável de ambiente `OPENAI_API_KEY` ou pela tela **Configurações** (`settings.html`).
 
-- Botão **Gerar via GPT** para criar perguntas a partir de um prompt, disponível em `questions.html`. As questões geradas mesclam conteúdo teórico e de programação e sempre possuem quatro alternativas, marcando as corretas com `isCorrect`. O campo `text` descreve cada opção e `code`/`language` são usados somente quando houver trechos de código. Para perguntas com programação, o campo `language` indica a linguagem correta e uma barra de progresso acompanha a geração.
+- Botão **Gerar via GPT** para criar perguntas a partir de um prompt, disponível em `questions.html`. As questões geradas mesclam conteúdo teórico e de programação e sempre possuem quatro alternativas, marcando as corretas com `isCorrect`. O campo `text` descreve cada opção e `code`/`language` são usados somente quando houver trechos de código. Para perguntas com programação, o campo `language` indica a linguagem; a detecção tenta usar `highlight.js` quando instalado e recorre a heurísticas simples quando não disponível. Uma barra de progresso acompanha a geração.
 - Opções **Verificar GPT** e **Explicar GPT** no menu de cada questão. A verificação abre um popup com o resultado e a explicação pode ser revisada antes de ser salva.
 - Cada questão passa a exibir o status de verificação pelo ChatGPT (✅ correta, ❌ inválida, ❓ incerta) e permite seleção para verificação em massa.
 

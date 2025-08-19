@@ -6,13 +6,7 @@ const multer = require('multer');
 const cors = require('cors');
 const pdfParse = require('pdf-parse');
 
-let OpenAI = null;
-try {
-  OpenAI = require('openai');
-} catch (e) {
-  console.warn('OpenAI not available:', e.message);
-}
-
+// optional highlight.js for language detection
 let hljs = null;
 try {
   hljs = require('highlight.js');
@@ -33,12 +27,34 @@ if (!openaiApiKey && process.env.OPENAI_API_KEY) {
   openaiApiKey = process.env.OPENAI_API_KEY;
 }
 
-let openai = OpenAI && openaiApiKey ? new OpenAI({ apiKey: openaiApiKey }) : null;
-
 function setOpenAiKey(key) {
   openaiApiKey = key;
-  openai = OpenAI && key ? new OpenAI({ apiKey: key }) : null;
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify({ openaiApiKey: openaiApiKey }, null, 2));
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify({ openaiApiKey }, null, 2));
+}
+
+async function openAiChat(body) {
+  if (!openaiApiKey) throw new Error('GPT not configured');
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${openaiApiKey}`
+    },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err);
+  }
+  return res.json();
+}
+
+function detectLanguage(code) {
+  if (/System\.out\.println|public\s+static\s+void\s+main/.test(code)) return 'java';
+  if (/#include|int\s+main|printf\(/.test(code)) return 'c';
+  if (/console\.log|function\s*\(|=>/.test(code)) return 'javascript';
+  if (/def\s+\w+\s*\(|print\(/.test(code)) return 'python';
+  return '';
 }
 
 // --- Config ---
@@ -385,10 +401,12 @@ app.post('/api/gpt/key', (req, res) => {
 });
 
 app.get('/api/gpt/enabled', async (req, res) => {
-  if (!openai) return res.json({ enabled: false });
+  if (!openaiApiKey) return res.json({ enabled: false });
   try {
-    await openai.models.list({ limit: 1 });
-    res.json({ enabled: true });
+    const r = await fetch('https://api.openai.com/v1/models?limit=1', {
+      headers: { Authorization: `Bearer ${openaiApiKey}` }
+    });
+    res.json({ enabled: r.ok });
   } catch (e) {
     res.json({ enabled: false });
   }
@@ -396,12 +414,12 @@ app.get('/api/gpt/enabled', async (req, res) => {
 // Generate new questions for an exam using OpenAI
 app.post('/api/gpt/generate', async (req, res) => {
   try {
-    if (!openai) return res.status(503).json({ error: 'GPT not configured' });
+    if (!openaiApiKey) return res.status(503).json({ error: 'GPT not configured' });
     const { examId, prompt, count = 5 } = req.body;
     if (!examId || !prompt) {
       return res.status(400).json({ error: 'examId and prompt required' });
     }
-    const completion = await openai.chat.completions.create({
+    const completion = await openAiChat({
       model: 'gpt-4o-mini',
       messages: [
         {
@@ -431,10 +449,13 @@ app.post('/api/gpt/generate', async (req, res) => {
               code = '';
             }
             let language = o.language || '';
-            if (code && !language && hljs) {
-              try {
-                language = hljs.highlightAuto(code).language || '';
-              } catch {}
+            if (code && !language) {
+              if (hljs) {
+                try {
+                  language = hljs.highlightAuto(code).language || '';
+                } catch {}
+              }
+              if (!language) language = detectLanguage(code);
             }
             return {
               text,
@@ -457,7 +478,7 @@ app.post('/api/gpt/generate', async (req, res) => {
 // Verify a question's answers using OpenAI
 app.post('/api/gpt/verify', async (req, res) => {
   try {
-    if (!openai) return res.status(503).json({ error: 'GPT not configured' });
+    if (!openaiApiKey) return res.status(503).json({ error: 'GPT not configured' });
     const { questionId } = req.body;
     if (!questionId) return res.status(400).json({ error: 'questionId required' });
     const q = await Question.findById(questionId);
@@ -465,7 +486,7 @@ app.post('/api/gpt/verify', async (req, res) => {
     const prompt = `Question: ${q.text}\nOptions:\n${q.options
       .map((o, i) => `${i + 1}. ${o.text}`)
       .join('\n')}`;
-    const completion = await openai.chat.completions.create({
+    const completion = await openAiChat({
       model: 'gpt-4o-mini',
       messages: [
         {
@@ -502,7 +523,7 @@ app.post('/api/gpt/verify', async (req, res) => {
 // Verify multiple questions and store GPT evaluation
 app.post('/api/gpt/verify/bulk', async (req, res) => {
   try {
-    if (!openai) return res.status(503).json({ error: 'GPT not configured' });
+    if (!openaiApiKey) return res.status(503).json({ error: 'GPT not configured' });
     const { questionIds } = req.body;
     if (!Array.isArray(questionIds) || !questionIds.length) {
       return res.status(400).json({ error: 'questionIds required' });
@@ -515,7 +536,7 @@ app.post('/api/gpt/verify/bulk', async (req, res) => {
         .map((o, i) => `${i + 1}. ${o.text}`)
         .join('\n')}`;
       try {
-        const completion = await openai.chat.completions.create({
+        const completion = await openAiChat({
           model: 'gpt-4o-mini',
           messages: [
             {
@@ -563,7 +584,7 @@ app.post('/api/gpt/verify/bulk', async (req, res) => {
 // Generate or return an explanation for a question
 app.post('/api/gpt/explain', async (req, res) => {
   try {
-    if (!openai) return res.status(503).json({ error: 'GPT not configured' });
+    if (!openaiApiKey) return res.status(503).json({ error: 'GPT not configured' });
     const { questionId } = req.body;
     if (!questionId) return res.status(400).json({ error: 'questionId required' });
     const q = await Question.findById(questionId);
@@ -572,7 +593,7 @@ app.post('/api/gpt/explain', async (req, res) => {
     const prompt = `Provide a concise explanation for why the correct answer is correct.\nQuestion: ${q.text}\nOptions:\n${q.options
       .map((o, i) => `${i + 1}. ${o.text}${o.isCorrect ? ' (correct)' : ''}`)
       .join('\n')}`;
-    const completion = await openai.chat.completions.create({
+    const completion = await openAiChat({
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: 'You explain exam answers succinctly.' },
