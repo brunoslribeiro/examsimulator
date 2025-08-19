@@ -6,6 +6,41 @@ const multer = require('multer');
 const cors = require('cors');
 const pdfParse = require('pdf-parse');
 
+let OpenAI = null;
+try {
+  OpenAI = require('openai');
+} catch (e) {
+  console.warn('OpenAI not available:', e.message);
+}
+
+let hljs = null;
+try {
+  hljs = require('highlight.js');
+} catch (e) {
+  console.warn('highlight.js not available:', e.message);
+}
+
+// Persisted configuration for the server
+const CONFIG_FILE = path.join(__dirname, 'config.json');
+let openaiApiKey = '';
+try {
+  const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+  openaiApiKey = cfg.openaiApiKey || '';
+} catch (_) {
+  openaiApiKey = '';
+}
+if (!openaiApiKey && process.env.OPENAI_API_KEY) {
+  openaiApiKey = process.env.OPENAI_API_KEY;
+}
+
+let openai = OpenAI && openaiApiKey ? new OpenAI({ apiKey: openaiApiKey }) : null;
+
+function setOpenAiKey(key) {
+  openaiApiKey = key;
+  openai = OpenAI && key ? new OpenAI({ apiKey: key }) : null;
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify({ openaiApiKey: openaiApiKey }, null, 2));
+}
+
 // --- Config ---
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017/examdb';
 const PORT = process.env.PORT || 3000;
@@ -182,7 +217,7 @@ app.delete('/api/exams/:id', async (req, res) => {
 // Questions
 app.post('/api/questions', async (req, res) => {
   try {
-    const { examId, text, type, options, imagePath, imageBase64, topic, status } = req.body;
+    const { examId, text, type, options, imagePath, imageBase64, topic, status, explanation } = req.body;
     if (!examId) return res.status(400).json({ error: 'examId is required' });
     let qImagePath = imagePath || '';
     if (imageBase64) qImagePath = saveBase64Image(imageBase64);
@@ -200,7 +235,8 @@ app.post('/api/questions', async (req, res) => {
         code: o.code || '',
         language: o.language || '',
         isCorrect: !!o.isCorrect
-      }))
+      })),
+      explanation: explanation || ''
     });
     res.json(q);
   } catch (e) {
@@ -231,7 +267,7 @@ app.get('/api/questions', async (req, res) => {
 
 app.put('/api/questions/:id', async (req, res) => {
   try {
-    const { text, type, options, imagePath, imageBase64, topic, status } = req.body;
+    const { text, type, options, imagePath, imageBase64, topic, status, explanation } = req.body;
     let qImagePath = imagePath || '';
     if (imageBase64) qImagePath = saveBase64Image(imageBase64);
     const parsedOptions = Array.isArray(options) ? options : [];
@@ -249,7 +285,8 @@ app.put('/api/questions/:id', async (req, res) => {
           code: o.code || '',
           language: o.language || '',
           isCorrect: !!o.isCorrect
-        }))
+        })),
+        explanation: explanation || ''
       },
       { new: true }
     );
@@ -335,6 +372,235 @@ app.post('/api/questions/replace', async (req, res) => {
 });
 
 
+
+// --- ChatGPT integrations ---
+app.get('/api/gpt/key', (req, res) => {
+  res.json({ hasKey: !!openaiApiKey });
+});
+
+app.post('/api/gpt/key', (req, res) => {
+  const { key } = req.body || {};
+  setOpenAiKey(key || '');
+  res.json({ hasKey: !!openaiApiKey });
+});
+
+app.get('/api/gpt/enabled', async (req, res) => {
+  if (!openai) return res.json({ enabled: false });
+  try {
+    await openai.models.list({ limit: 1 });
+    res.json({ enabled: true });
+  } catch (e) {
+    res.json({ enabled: false });
+  }
+});
+// Generate new questions for an exam using OpenAI
+app.post('/api/gpt/generate', async (req, res) => {
+  try {
+    if (!openai) return res.status(503).json({ error: 'GPT not configured' });
+    const { examId, prompt, count = 5 } = req.body;
+    if (!examId || !prompt) {
+      return res.status(400).json({ error: 'examId and prompt required' });
+    }
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are an exam question generator. Always output multiple choice questions. Each question must contain exactly four options in "options" and mark the correct ones with "isCorrect". Set the question "type" to "single" when only one option is correct or "multiple" when more than one is correct. For code snippets include a "language" field indicating the programming language.'
+        },
+        {
+          role: 'user',
+          content: `Create ${count} questions about ${prompt}. Provide four meaningful options for each, avoid placeholder values like "A" or "B", and include programming questions only when relevant.`
+        }
+      ],
+      response_format: { type: 'json_object' }
+    });
+    const payload = JSON.parse(completion.choices[0].message.content || '{}');
+    const questions = Array.isArray(payload.questions) ? payload.questions : [];
+    const parsed = questions.map(q => ({
+      examId,
+      text: q.text || '',
+      type: ['single', 'multiple'].includes(q.type) ? q.type : 'single',
+      options: Array.isArray(q.options)
+        ? q.options.map(o => {
+            let text = o.text || '';
+            let code = o.code || '';
+            if (!text && code && /^[A-D]$/i.test(code.trim())) {
+              text = code.trim();
+              code = '';
+            }
+            let language = o.language || '';
+            if (code && !language && hljs) {
+              try {
+                language = hljs.highlightAuto(code).language || '';
+              } catch {}
+            }
+            return {
+              text,
+              code,
+              language,
+              isCorrect: !!o.isCorrect
+            };
+          })
+        : [],
+      explanation: q.explanation || ''
+    }));
+    const valid = parsed.filter(q => q.options.filter(o => o.text).length === 4 && q.options.some(o => o.isCorrect));
+    const docs = await Question.insertMany(valid);
+    res.json({ created: docs.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Verify a question's answers using OpenAI
+app.post('/api/gpt/verify', async (req, res) => {
+  try {
+    if (!openai) return res.status(503).json({ error: 'GPT not configured' });
+    const { questionId } = req.body;
+    if (!questionId) return res.status(400).json({ error: 'questionId required' });
+    const q = await Question.findById(questionId);
+    if (!q) return res.status(404).json({ error: 'Question not found' });
+    const prompt = `Question: ${q.text}\nOptions:\n${q.options
+      .map((o, i) => `${i + 1}. ${o.text}`)
+      .join('\n')}`;
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Given a multiple choice question, respond with JSON {correctIndices:[number], explanation:string} where indices are 0-based.'
+        },
+        { role: 'user', content: prompt }
+      ],
+      response_format: { type: 'json_object' }
+    });
+    let data = {};
+    try {
+      data = JSON.parse(completion.choices[0].message.content || '{}');
+    } catch (e) {}
+    const expected = q.options.map((o, idx) => (o.isCorrect ? idx : -1)).filter(i => i >= 0);
+    const gpt = Array.isArray(data.correctIndices) ? data.correctIndices : [];
+    const matches = expected.length === gpt.length && expected.every(i => gpt.includes(i));
+    const status = Array.isArray(data.correctIndices)
+      ? matches
+        ? 'correct'
+        : 'invalid'
+      : 'uncertain';
+    await Question.findByIdAndUpdate(questionId, {
+      gptStatus: status,
+      gptResponse: JSON.stringify(data)
+    });
+    res.json({ matches, expected, gpt, status });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Verify multiple questions and store GPT evaluation
+app.post('/api/gpt/verify/bulk', async (req, res) => {
+  try {
+    if (!openai) return res.status(503).json({ error: 'GPT not configured' });
+    const { questionIds } = req.body;
+    if (!Array.isArray(questionIds) || !questionIds.length) {
+      return res.status(400).json({ error: 'questionIds required' });
+    }
+    const results = [];
+    for (const id of questionIds) {
+      const q = await Question.findById(id);
+      if (!q) continue;
+      const prompt = `Question: ${q.text}\nOptions:\n${q.options
+        .map((o, i) => `${i + 1}. ${o.text}`)
+        .join('\n')}`;
+      try {
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content:
+                'Given a multiple choice question, respond with JSON {correctIndices:[number], explanation:string} where indices are 0-based.'
+            },
+            { role: 'user', content: prompt }
+          ],
+          response_format: { type: 'json_object' }
+        });
+        let data = {};
+        try {
+          data = JSON.parse(completion.choices[0].message.content || '{}');
+        } catch (e) {}
+        const expected = q.options
+          .map((o, idx) => (o.isCorrect ? idx : -1))
+          .filter(i => i >= 0);
+        const gpt = Array.isArray(data.correctIndices) ? data.correctIndices : [];
+        const matches = expected.length === gpt.length && expected.every(i => gpt.includes(i));
+        const status = Array.isArray(data.correctIndices)
+          ? matches
+            ? 'correct'
+            : 'invalid'
+          : 'uncertain';
+        await Question.findByIdAndUpdate(id, {
+          gptStatus: status,
+          gptResponse: JSON.stringify(data)
+        });
+        results.push({ questionId: id, status, matches, expected, gpt });
+      } catch (err) {
+        await Question.findByIdAndUpdate(id, {
+          gptStatus: 'uncertain',
+          gptResponse: err.message
+        });
+        results.push({ questionId: id, status: 'uncertain', matches: false, expected: [], gpt: [] });
+      }
+    }
+    res.json({ results });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Generate or return an explanation for a question
+app.post('/api/gpt/explain', async (req, res) => {
+  try {
+    if (!openai) return res.status(503).json({ error: 'GPT not configured' });
+    const { questionId } = req.body;
+    if (!questionId) return res.status(400).json({ error: 'questionId required' });
+    const q = await Question.findById(questionId);
+    if (!q) return res.status(404).json({ error: 'Question not found' });
+    if (q.explanation) return res.json({ explanation: q.explanation });
+    const prompt = `Provide a concise explanation for why the correct answer is correct.\nQuestion: ${q.text}\nOptions:\n${q.options
+      .map((o, i) => `${i + 1}. ${o.text}${o.isCorrect ? ' (correct)' : ''}`)
+      .join('\n')}`;
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'You explain exam answers succinctly.' },
+        { role: 'user', content: prompt }
+      ]
+    });
+    const explanation = completion.choices[0].message.content.trim();
+    res.json({ explanation });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Update explanation field
+app.put('/api/questions/:id/explanation', async (req, res) => {
+  try {
+    const { explanation } = req.body;
+    const q = await Question.findByIdAndUpdate(
+      req.params.id,
+      { explanation: explanation || '' },
+      { new: true }
+    );
+    if (!q) return res.status(404).json({ error: 'Question not found' });
+    res.json({ explanation: q.explanation });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // Import questions from a PDF. Accepts multipart/form-data with field 'file'.
 // Optional body fields: examId to append to an existing exam, title/description to create a new one

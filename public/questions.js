@@ -2,9 +2,22 @@ const api = (u,o={})=>fetch(u,o).then(r=>r.json());
 const examId = new URLSearchParams(location.search).get('examId');
 if(!examId){ document.body.innerHTML='<p class="container">examId obrigatório.</p>'; throw new Error('no examId'); }
 
+let gptEnabled = false;
 const state = { q:'', topic:'', status:'', hasImage:'', since:'', sort:'recent', page:1, total:0, items:[], dirty:false };
 let currentReq = null;
 let lastFocus = null;
+let currentExpId = null;
+
+async function checkGpt(){
+  try {
+    const res = await fetch('/api/gpt/enabled').then(r=>r.json());
+    if(res.enabled){
+      gptEnabled = true;
+      $('#gptGenBtn, #gptVerifySelBtn').show();
+      if(state.items.length) $('#list').html(renderList(state.items, state.q, gptEnabled));
+    }
+  } catch(e){}
+}
 
 function loadFromQuery(){
   const p = new URLSearchParams(location.search);
@@ -53,7 +66,7 @@ function fetchList(){
       state.items = res.items || [];
       state.total = res.total || 0;
       if(!state.items.length){ $('#list').html('<p class="empty">Nenhum resultado.</p>'); renderPagination(); return; }
-      $('#list').html(renderList(state.items, state.q));
+      $('#list').html(renderList(state.items, state.q, gptEnabled));
       $('#list .q-row').each(function(i){ $(this).delay(i*30).fadeIn(200); });
       renderPagination();
     })
@@ -63,7 +76,8 @@ function fetchList(){
         $('#retry').on('click',e=>{ e.preventDefault(); fetchList(); });
         toast('Erro ao carregar');
       }
-    });
+    })
+    .always(()=>{ currentReq = null; });
 }
 
 function renderPagination(){
@@ -190,9 +204,6 @@ async function saveQuestion(andNew){
 }
 
 // Events
-loadFromQuery();
-updateQuery();
-fetchList();
 
 $('#search').on('input', debounce(function(){ state.q=this.value; state.page=1; updateQuery(); fetchList(); },300));
 $('#search').on('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); state.q=this.value; state.page=1; updateQuery(); fetchList(); }});
@@ -245,6 +256,29 @@ $('#list').on('click','.row-menu .del',async function(e){
   }
 });
 
+$('#list').on('click','.row-menu .verify',async function(e){
+  e.stopPropagation();
+  const id=$(this).closest('.q-row').data('id');
+  const q=state.items.find(x=>x._id===id);
+  const res=await api('/api/gpt/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionId:id})});
+  $('#verifyQuestion').text(q.text||'');
+  $('#verifyResult').text(res.matches?'Respostas conferem':'Possível erro nas respostas');
+  $('#verifyDetails').text(`Esperado: ${res.expected.join(', ')} | GPT: ${res.gpt.join(', ')}`);
+  $('#verifyModal').addClass('open').attr('aria-hidden','false');
+  $('body').addClass('modal-open');
+  fetchList();
+});
+
+$('#list').on('click','.row-menu .explain',async function(e){
+  e.stopPropagation();
+  const id=$(this).closest('.q-row').data('id');
+  const res=await api('/api/gpt/explain',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionId:id})});
+  currentExpId=id;
+  $('#expText').val(res.explanation||'');
+  $('#expModal').addClass('open').attr('aria-hidden','false');
+  $('body').addClass('modal-open');
+});
+
 $(document).on('click',function(){
   $('.row-menu').hide();
   $('.overflow').attr('aria-expanded','false');
@@ -260,6 +294,61 @@ $('#qForm').on('change input',()=>{ state.dirty=true; });
 $('#qimg').on('change',async function(){ const f=this.files[0]; if(!f) return; const fd=new FormData(); fd.append('file',f); const res=await fetch('/api/upload',{method:'POST',body:fd}).then(r=>r.json()); if(res.path){ $(this).data('imagePath',res.path); $('#qimgPreview').attr('src',res.path).show(); } });
 $('#removeImg').on('click',function(){ $('#qimg').removeData('imagePath'); $('#qimgPreview').hide().attr('src',''); });
 $('#qtext').on('input',function(){ $('#qtextCount').text(this.value.length); });
+
+$('#gptGenBtn').on('click',function(){
+  $('#gptModal').addClass('open').attr('aria-hidden','false');
+  $('body').addClass('modal-open');
+  $('#gptPrompt').focus();
+});
+$('#cancelGpt').on('click',function(){ $('#gptForm')[0].reset(); $('#gptModal').removeClass('open').attr('aria-hidden','true'); $('body').removeClass('modal-open'); });
+$('#gptModal').on('click',function(e){ if(e.target===this) $('#cancelGpt').click(); });
+$('#gptForm').on('submit',async function(e){
+  e.preventDefault();
+  const prompt=$('#gptPrompt').val().trim();
+  const count=parseInt($('#gptCount').val(),10)||5;
+  const btn=$(this).find('button[type=submit]').prop('disabled',true);
+  const prog=$('#gptProgress').show();
+  const bar=prog.find('.bar');
+  let pct=0; const timer=setInterval(()=>{pct=(pct+5)%100;bar.css('width',pct+'%');},200);
+  try{
+    const res=await api('/api/gpt/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({examId,prompt,count})});
+    if(res.created) toast('Geradas '+res.created+' questões');
+  } finally {
+    clearInterval(timer);
+    prog.hide(); bar.css('width','0');
+    btn.prop('disabled',false);
+    $('#cancelGpt').click();
+    fetchList();
+  }
+});
+$('#gptVerifySelBtn').on('click',async function(){
+  const ids=$('#list .sel:checked').map((i,el)=>$(el).closest('.q-row').data('id')).get();
+  if(!ids.length){ alert('Selecione ao menos uma questão'); return; }
+  await api('/api/gpt/verify/bulk',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionIds:ids})});
+  toast('Verificação concluída');
+  fetchList();
+});
+$('#saveExp').on('click',async function(){
+  if(!currentExpId) return;
+  const explanation=$('#expText').val().trim();
+  await api(`/api/questions/${currentExpId}/explanation`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({explanation})});
+  toast('Explicação salva');
+  currentExpId=null;
+  $('#expModal').removeClass('open').attr('aria-hidden','true');
+  $('body').removeClass('modal-open');
+  fetchList();
+});
+$('#closeExp').on('click',function(){ currentExpId=null; $('#expModal').removeClass('open').attr('aria-hidden','true'); $('body').removeClass('modal-open'); });
+$('#expModal').on('click',function(e){ if(e.target===this) $('#closeExp').click(); });
+$('#closeVerify').on('click',function(){ $('#verifyModal').removeClass('open').attr('aria-hidden','true'); $('body').removeClass('modal-open'); });
+$('#verifyModal').on('click',function(e){ if(e.target===this) $('#closeVerify').click(); });
+
+$(async function(){
+  loadFromQuery();
+  updateQuery();
+  await checkGpt();
+  fetchList();
+});
 
 // keyboard shortcuts
 $(document).on('keydown',function(e){

@@ -15,7 +15,14 @@ const QuestionSchema = new mongoose.Schema({
   topic: { type: String, default: '' },
   status: { type: String, enum: ['draft','published'], default: 'draft' },
   deleted: { type: Boolean, default: false },
-  options: { type: [OptionSchema], default: [] }
+  options: { type: [OptionSchema], default: [] },
+  explanation: { type: String, default: '' },
+  gptStatus: {
+    type: String,
+    enum: ['unchecked', 'correct', 'invalid', 'uncertain'],
+    default: 'unchecked'
+  },
+  gptResponse: { type: String, default: '' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Question', QuestionSchema);
