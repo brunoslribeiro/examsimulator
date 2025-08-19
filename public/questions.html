@@ -16,7 +16,8 @@
     .search-bar{position:sticky;top:0;z-index:10;background:var(--card);padding:8px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;}
     .search-bar input,.search-bar button{min-height:36px;padding:6px;}
     #list{flex:1;overflow-y:scroll;scrollbar-gutter:stable;padding:8px;}
-    .q-row{padding:12px;border-bottom:1px solid var(--border);position:relative;}
+    .q-row{padding:12px 12px 12px 32px;border-bottom:1px solid var(--border);position:relative;}
+    .q-row input.sel{position:absolute;left:8px;top:16px;}
     .q-row .meta{font-size:12px;color:var(--muted);}
     .overflow{position:absolute;right:8px;top:8px;background:none;border:none;color:inherit;cursor:pointer;width:44px;height:44px;}
     .row-menu{position:absolute;right:8px;top:32px;background:var(--card);border:1px solid var(--border);display:none;flex-direction:column;z-index:20;}
@@ -32,6 +33,8 @@
     .counter{font-size:12px;margin-left:4px;color:var(--muted);}
     .empty,.error{text-align:center;color:var(--muted);margin-top:20px;}
     :focus{outline:2px solid var(--accent);outline-offset:2px;}
+    #gptProgress{display:none;width:100%;height:4px;background:var(--border);margin-top:10px;}
+    #gptProgress .bar{height:100%;width:0;background:var(--accent);}
   </style>
 </head>
 <body>
@@ -65,6 +68,8 @@
       <div class="search-bar">
         <input type="text" id="search" placeholder="Pesquisar" aria-label="Pesquisar" />
         <button id="newBtn" type="button">Nova questão</button>
+        <button id="gptGenBtn" type="button" style="display:none">Gerar via GPT</button>
+        <button id="gptVerifySelBtn" type="button" style="display:none">Verificar selecionadas</button>
       </div>
       <div id="list"></div>
       <div id="pagination" class="search-bar" style="justify-content:center;"></div>
@@ -89,6 +94,41 @@
           <button type="button" id="cancel" class="danger">Cancelar</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="gptModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-content">
+      <form id="gptForm">
+        <label>Assunto <input id="gptPrompt" required /></label>
+        <label>Quantidade <input type="number" id="gptCount" value="5" min="1" max="20" /></label>
+        <div class="row">
+          <button type="submit">Gerar</button>
+          <button type="button" id="cancelGpt" class="danger">Cancelar</button>
+        </div>
+        <div id="gptProgress"><div class="bar"></div></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="expModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-content">
+      <h3>Explicação</h3>
+      <textarea id="expText" style="width:100%;min-height:120px"></textarea>
+      <div class="row">
+        <button type="button" id="saveExp">Salvar</button>
+        <button type="button" id="closeExp" class="danger">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="verifyModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-content">
+      <h3>Verificação GPT</h3>
+      <p id="verifyQuestion" class="meta"></p>
+      <p id="verifyResult"></p>
+      <p id="verifyDetails" class="meta"></p>
+      <div class="row"><button type="button" id="closeVerify">Fechar</button></div>
     </div>
   </div>
 
