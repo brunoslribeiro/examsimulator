@@ -11,6 +11,8 @@ const QuestionSchema = new mongoose.Schema({
   examId: { type: mongoose.Schema.Types.ObjectId, ref: 'Exam', required: true },
   text: { type: String, default: '' },
   imagePath: { type: String, default: '' },
+  code: { type: String, default: '' },
+  language: { type: String, default: '' },
   type: { type: String, enum: ['single','multiple'], default: 'single' },
   topic: { type: String, default: '' },
   status: { type: String, enum: ['draft','published'], default: 'draft' },

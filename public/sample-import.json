@@ -35,6 +35,16 @@
               "imageBase64": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/w8AAwMB/Ur8/oUAAAAASUVORK5CYII="
             }
           ]
+        },
+        {
+          "text": "O que o seguinte código imprime?",
+          "code": "console.log('Hello');",
+          "language": "javascript",
+          "type": "single",
+          "options": [
+            { "text": "Hello", "isCorrect": true },
+            { "text": "World", "isCorrect": false }
+          ]
         }
       ]
     }

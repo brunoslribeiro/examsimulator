@@ -182,7 +182,7 @@ app.delete('/api/exams/:id', async (req, res) => {
 // Questions
 app.post('/api/questions', async (req, res) => {
   try {
-    const { examId, text, type, options, imagePath, imageBase64, topic, status } = req.body;
+    const { examId, text, type, options, imagePath, imageBase64, topic, status, code, language } = req.body;
     if (!examId) return res.status(400).json({ error: 'examId is required' });
     let qImagePath = imagePath || '';
     if (imageBase64) qImagePath = saveBase64Image(imageBase64);
@@ -191,6 +191,8 @@ app.post('/api/questions', async (req, res) => {
       examId,
       text,
       imagePath: qImagePath,
+      code: code || '',
+      language: language || '',
       type: ['single','multiple'].includes(type) ? type : 'single',
       topic: topic || '',
       status: ['draft','published'].includes(status) ? status : 'draft',
@@ -231,7 +233,7 @@ app.get('/api/questions', async (req, res) => {
 
 app.put('/api/questions/:id', async (req, res) => {
   try {
-    const { text, type, options, imagePath, imageBase64, topic, status } = req.body;
+    const { text, type, options, imagePath, imageBase64, topic, status, code, language } = req.body;
     let qImagePath = imagePath || '';
     if (imageBase64) qImagePath = saveBase64Image(imageBase64);
     const parsedOptions = Array.isArray(options) ? options : [];
@@ -240,6 +242,8 @@ app.put('/api/questions/:id', async (req, res) => {
       {
         text,
         imagePath: qImagePath,
+        code: code || '',
+        language: language || '',
         type: ['single','multiple'].includes(type) ? type : 'single',
         topic: topic || '',
         status: ['draft','published'].includes(status) ? status : 'draft',
@@ -390,6 +394,8 @@ app.post('/api/import', async (req, res) => {
           examId: exam._id,
           text: q.text || '',
           imagePath: q.imageBase64 ? saveBase64Image(q.imageBase64) : (q.imagePath || ''),
+          code: q.code || '',
+          language: q.language || '',
           type: ['single', 'multiple'].includes(q.type) ? q.type : 'single',
           options: Array.isArray(q.options)
             ? q.options.map(o => ({
