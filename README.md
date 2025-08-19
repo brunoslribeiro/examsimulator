@@ -113,6 +113,8 @@ O retorno contém a quantidade de questões importadas e o `examId` utilizado.
 
 Também existe uma interface web em `/import.html`, acessível pelo menu **Importar**, para realizar a importação via PDF ou JSON pelo navegador.
 
+Ao usar JSON, cada questão pode incluir os campos `code` e `language` para especificar um trecho de código e sua linguagem de programação.
+
 ## 🔄 Substituição de termos nos enunciados
 
 Permite buscar um termo em todos os enunciados e substituí-lo em massa. É possível visualizar previamente quais questões serão afetadas e, após confirmação, aplicar as alterações.
