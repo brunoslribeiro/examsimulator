@@ -407,47 +407,47 @@ app.post('/api/gpt/generate', async (req, res) => {
         {
           role: 'system',
           content:
-            'You are an exam question generator. Produce a mix of plain multiple choice questions and programming questions when relevant. For every code snippet include "language" with the correct programming language (e.g., "javascript", "python"). Return JSON {questions:[{text,type,options:[{text,code,language,isCorrect}],explanation}]}. Every option must include non-empty "text" and only provide "code" and "language" when a code snippet is present.'
+            'You are an exam question generator. Always output multiple choice questions. Each question must contain exactly four options in "options" and mark the correct ones with "isCorrect". Set the question "type" to "single" when only one option is correct or "multiple" when more than one is correct. For code snippets include a "language" field indicating the programming language.'
         },
         {
           role: 'user',
-          content: `Create ${count} diverse questions about ${prompt}. Ensure several are standard text questions. Provide four meaningful options for each question and avoid placeholder values like "A" or "B".`
+          content: `Create ${count} questions about ${prompt}. Provide four meaningful options for each, avoid placeholder values like "A" or "B", and include programming questions only when relevant.`
         }
       ],
       response_format: { type: 'json_object' }
     });
     const payload = JSON.parse(completion.choices[0].message.content || '{}');
     const questions = Array.isArray(payload.questions) ? payload.questions : [];
-    const docs = await Question.insertMany(
-      questions.map(q => ({
-        examId,
-        text: q.text || '',
-        type: ['single', 'multiple'].includes(q.type) ? q.type : 'single',
-        options: Array.isArray(q.options)
-          ? q.options.map(o => {
-              let text = o.text || '';
-              let code = o.code || '';
-              if (!text && code && /^[A-D]$/i.test(code.trim())) {
-                text = code.trim();
-                code = '';
-              }
-              let language = o.language || '';
-              if (code && !language && hljs) {
-                try {
-                  language = hljs.highlightAuto(code).language || '';
-                } catch {}
-              }
-              return {
-                text,
-                code,
-                language,
-                isCorrect: !!o.isCorrect
-              };
-            })
-          : [],
-        explanation: q.explanation || ''
-      }))
-    );
+    const parsed = questions.map(q => ({
+      examId,
+      text: q.text || '',
+      type: ['single', 'multiple'].includes(q.type) ? q.type : 'single',
+      options: Array.isArray(q.options)
+        ? q.options.map(o => {
+            let text = o.text || '';
+            let code = o.code || '';
+            if (!text && code && /^[A-D]$/i.test(code.trim())) {
+              text = code.trim();
+              code = '';
+            }
+            let language = o.language || '';
+            if (code && !language && hljs) {
+              try {
+                language = hljs.highlightAuto(code).language || '';
+              } catch {}
+            }
+            return {
+              text,
+              code,
+              language,
+              isCorrect: !!o.isCorrect
+            };
+          })
+        : [],
+      explanation: q.explanation || ''
+    }));
+    const valid = parsed.filter(q => q.options.filter(o => o.text).length === 4 && q.options.some(o => o.isCorrect));
+    const docs = await Question.insertMany(valid);
     res.json({ created: docs.length });
   } catch (e) {
     res.status(500).json({ error: e.message });
