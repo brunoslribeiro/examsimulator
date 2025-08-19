@@ -165,6 +165,7 @@ function gatherForm(){
 
 function resetForm(){
   $('#qForm')[0].reset();
+  $('#qid').val('');
   $('#qimg').removeData('imagePath');
   $('#qimgPreview').hide().attr('src','');
   $('#opts').empty();
