@@ -115,6 +115,32 @@ Também existe uma interface web em `/import.html`, acessível pelo menu **Impor
 
 Ao usar JSON, cada questão pode incluir os campos `code` e `language` para especificar um trecho de código e sua linguagem de programação.
 
+Exemplo de arquivo JSON:
+
+```json
+{
+  "exams": [
+    {
+      "title": "Exame de Exemplo",
+      "questions": [
+        {
+          "text": "O que o seguinte código imprime?",
+          "code": "console.log('Hello');",
+          "language": "javascript",
+          "type": "single",
+          "options": [
+            { "text": "Hello", "isCorrect": true },
+            { "text": "World", "isCorrect": false }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Um exemplo mais completo pode ser encontrado em `public/sample-import.json`.
+
 ## 🔄 Substituição de termos nos enunciados
 
 Permite buscar um termo em todos os enunciados e substituí-lo em massa. É possível visualizar previamente quais questões serão afetadas e, após confirmação, aplicar as alterações.
