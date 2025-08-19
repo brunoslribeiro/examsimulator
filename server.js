@@ -13,6 +13,13 @@ try {
   console.warn('OpenAI not available:', e.message);
 }
 
+let hljs = null;
+try {
+  hljs = require('highlight.js');
+} catch (e) {
+  console.warn('highlight.js not available:', e.message);
+}
+
 // Persisted configuration for the server
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 let openaiApiKey = '';
@@ -400,7 +407,7 @@ app.post('/api/gpt/generate', async (req, res) => {
         {
           role: 'system',
           content:
-            'You are an exam question generator. Produce a mix of plain multiple choice questions and programming questions when relevant. Return JSON {questions:[{text,type,options:[{text,code,language,isCorrect}],explanation}]}. Every option must include non-empty "text" and only provide "code"/"language" when a code snippet is present.'
+            'You are an exam question generator. Produce a mix of plain multiple choice questions and programming questions when relevant. For every code snippet include "language" with the correct programming language (e.g., "javascript", "python"). Return JSON {questions:[{text,type,options:[{text,code,language,isCorrect}],explanation}]}. Every option must include non-empty "text" and only provide "code" and "language" when a code snippet is present.'
         },
         {
           role: 'user',
@@ -424,10 +431,16 @@ app.post('/api/gpt/generate', async (req, res) => {
                 text = code.trim();
                 code = '';
               }
+              let language = o.language || '';
+              if (code && !language && hljs) {
+                try {
+                  language = hljs.highlightAuto(code).language || '';
+                } catch {}
+              }
               return {
                 text,
                 code,
-                language: o.language || '',
+                language,
                 isCorrect: !!o.isCorrect
               };
             })

@@ -33,6 +33,8 @@
     .counter{font-size:12px;margin-left:4px;color:var(--muted);}
     .empty,.error{text-align:center;color:var(--muted);margin-top:20px;}
     :focus{outline:2px solid var(--accent);outline-offset:2px;}
+    #gptProgress{display:none;width:100%;height:4px;background:var(--border);margin-top:10px;}
+    #gptProgress .bar{height:100%;width:0;background:var(--accent);}
   </style>
 </head>
 <body>
@@ -104,6 +106,7 @@
           <button type="submit">Gerar</button>
           <button type="button" id="cancelGpt" class="danger">Cancelar</button>
         </div>
+        <div id="gptProgress"><div class="bar"></div></div>
       </form>
     </div>
   </div>

@@ -305,10 +305,20 @@ $('#gptForm').on('submit',async function(e){
   e.preventDefault();
   const prompt=$('#gptPrompt').val().trim();
   const count=parseInt($('#gptCount').val(),10)||5;
-  const res=await api('/api/gpt/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({examId,prompt,count})});
-  if(res.created) toast('Geradas '+res.created+' questões');
-  $('#cancelGpt').click();
-  fetchList();
+  const btn=$(this).find('button[type=submit]').prop('disabled',true);
+  const prog=$('#gptProgress').show();
+  const bar=prog.find('.bar');
+  let pct=0; const timer=setInterval(()=>{pct=(pct+5)%100;bar.css('width',pct+'%');},200);
+  try{
+    const res=await api('/api/gpt/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({examId,prompt,count})});
+    if(res.created) toast('Geradas '+res.created+' questões');
+  } finally {
+    clearInterval(timer);
+    prog.hide(); bar.css('width','0');
+    btn.prop('disabled',false);
+    $('#cancelGpt').click();
+    fetchList();
+  }
 });
 $('#gptVerifySelBtn').on('click',async function(){
   const ids=$('#list .sel:checked').map((i,el)=>$(el).closest('.q-row').data('id')).get();
